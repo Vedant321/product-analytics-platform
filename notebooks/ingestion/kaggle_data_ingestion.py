@@ -7,6 +7,7 @@
 
 # DBTITLE 1,Install Kaggle Library
 # MAGIC %pip install kaggle --quiet
+# MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -150,7 +151,11 @@ Validate the dataset and preview the data structure
 """
 
 import pandas as pd
-from pyspark.sql import SparkSession
+import os
+import subprocess
+
+# Get volume path from config
+volume_path = config.catalog.volume_path
 
 print("="*80)
 print("DATA VALIDATION SUMMARY")
@@ -188,10 +193,12 @@ if csv_files:
     print(f"\nSample data (first 5 rows):")
     display(df_preview)
     
-    # Count total rows in first file (approximate)
-    print(f"\n📄 Reading row count from {sample_file}...")
-    df_full = pd.read_csv(sample_path)
-    print(f"   Rows: {len(df_full):,}")
+    # Count total rows using wc -l (faster, no memory overhead)
+    print(f"\n📄 Counting rows in {sample_file}...")
+    import subprocess
+    result = subprocess.run(['wc', '-l', sample_path], capture_output=True, text=True)
+    row_count = int(result.stdout.split()[0]) - 1  # Subtract 1 for header
+    print(f"   Rows: {row_count:,}")
     
 print("\n" + "="*80)
 print("✅ Data validation complete! Ready for ingestion pipeline.")
