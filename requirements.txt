@@ -2,7 +2,7 @@
 # Core Data Processing
 pyspark==3.5.3
 delta-spark==3.2.0
-pandas==2.2.2
+pandas==2.1.4
 numpy==1.26.4
 pyarrow==17.0.0
 
@@ -44,10 +44,10 @@ ipykernel==6.29.5
 notebook==7.2.2
 
 # Linting & Formatting
-black==24.8.0
-flake8==7.1.1
+black==23.12.1
+flake8==6.1.0
 isort==5.13.2
-mypy==1.11.2
+mypy==1.7.1
 
 # Statistical Analysis (for A/B testing)
 scipy==1.14.1
