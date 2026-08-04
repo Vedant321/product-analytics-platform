@@ -1,0 +1,55 @@
+# Core Data Processing
+pyspark==3.5.0
+delta-spark==3.0.0
+pandas==2.1.4
+numpy==1.26.2
+pyarrow==14.0.1
+
+# Kafka / Streaming
+kafka-python==2.0.2
+confluent-kafka==2.3.0
+
+# Data Quality & Transformation
+dbt-core==1.7.4
+dbt-databricks==1.7.3
+great-expectations==0.18.8
+
+# Databricks
+databricks-sdk==0.18.0
+databricks-cli==0.18.0
+
+# Database Connectors
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Data Visualization & Analysis
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.18.0
+
+# Utilities
+python-dotenv==1.0.0
+pyyaml==6.0.1
+click==8.1.7
+tqdm==4.66.1
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+
+# Jupyter
+jupyterlab==4.0.9
+ipykernel==6.27.1
+notebook==7.0.6
+
+# Linting & Formatting
+black==23.12.1
+flake8==6.1.0
+isort==5.13.2
+mypy==1.7.1
+
+# Statistical Analysis (for A/B testing)
+scipy==1.11.4
+statsmodels==0.14.1
+scikit-learn==1.3.2
