@@ -12,38 +12,46 @@
 
 # DBTITLE 1,Set Kaggle Credentials
 """
-Set up Kaggle API credentials
+Set up Kaggle API credentials from environment variables
 
-Option 1: Use dbutils.secrets (recommended for production)
-Option 2: Set environment variables directly (for quick testing)
+Credentials are loaded from:
+- Environment variables (set via .env file or Databricks cluster environment)
+- Databricks Secrets (production)
 
 To get your Kaggle credentials:
 1. Go to https://www.kaggle.com/
 2. Click your profile picture → Settings
 3. Scroll to API section → Click "Create New Token"
 4. Downloads kaggle.json with your username and key
+5. Add them to your .env file locally (see .env.example)
 """
 
 import os
-import json
 
-# Option 1: Load from Databricks Secrets (recommended)
-# Uncomment these lines after setting up secrets:
-# KAGGLE_USERNAME = dbutils.secrets.get(scope="kaggle", key="username")
-# KAGGLE_KEY = dbutils.secrets.get(scope="kaggle", key="key")
-
-# Option 2: Direct input (for quick testing - NOT for production)
-# Replace with your actual credentials from kaggle.json
-KAGGLE_USERNAME = "your_kaggle_username"  # TODO: Replace with your username
-KAGGLE_KEY = "your_kaggle_key"  # TODO: Replace with your key
+# Try to load from Databricks Secrets first (production)
+try:
+    KAGGLE_USERNAME = dbutils.secrets.get(scope="kaggle", key="username")
+    KAGGLE_KEY = dbutils.secrets.get(scope="kaggle", key="key")
+    print("✅ Loaded credentials from Databricks Secrets")
+except:
+    # Fall back to environment variables (from .env or cluster config)
+    KAGGLE_USERNAME = os.getenv('KAGGLE_USERNAME')
+    KAGGLE_KEY = os.getenv('KAGGLE_KEY')
+    
+    if not KAGGLE_USERNAME or not KAGGLE_KEY:
+        raise ValueError(
+            "Kaggle credentials not found!\n"
+            "\nFor local development: Create a .env file in project root\n"
+            "For Databricks: Set cluster environment variables or use Secrets"
+        )
+    print("✅ Loaded credentials from environment variables")
 
 # Set environment variables for Kaggle API
 os.environ['KAGGLE_USERNAME'] = KAGGLE_USERNAME
 os.environ['KAGGLE_KEY'] = KAGGLE_KEY
 
-print("✅ Kaggle credentials configured")
 print(f"Username: {KAGGLE_USERNAME}")
-print("\n⚠️  Remember to replace with your actual credentials!")
+print("\n✅ Kaggle API ready!")
 
 # COMMAND ----------
 
