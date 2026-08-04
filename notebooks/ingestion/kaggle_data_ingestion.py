@@ -1,0 +1,190 @@
+# Databricks notebook source
+# DBTITLE 1,Load Configuration
+# Load platform configuration
+%run ../../config/platform_config
+
+# COMMAND ----------
+
+# DBTITLE 1,Install Kaggle Library
+# MAGIC %pip install kaggle --quiet
+
+# COMMAND ----------
+
+# DBTITLE 1,Set Kaggle Credentials
+"""
+Set up Kaggle API credentials
+
+Option 1: Use dbutils.secrets (recommended for production)
+Option 2: Set environment variables directly (for quick testing)
+
+To get your Kaggle credentials:
+1. Go to https://www.kaggle.com/
+2. Click your profile picture → Settings
+3. Scroll to API section → Click "Create New Token"
+4. Downloads kaggle.json with your username and key
+"""
+
+import os
+import json
+
+# Option 1: Load from Databricks Secrets (recommended)
+# Uncomment these lines after setting up secrets:
+# KAGGLE_USERNAME = dbutils.secrets.get(scope="kaggle", key="username")
+# KAGGLE_KEY = dbutils.secrets.get(scope="kaggle", key="key")
+
+# Option 2: Direct input (for quick testing - NOT for production)
+# Replace with your actual credentials from kaggle.json
+KAGGLE_USERNAME = "your_kaggle_username"  # TODO: Replace with your username
+KAGGLE_KEY = "your_kaggle_key"  # TODO: Replace with your key
+
+# Set environment variables for Kaggle API
+os.environ['KAGGLE_USERNAME'] = KAGGLE_USERNAME
+os.environ['KAGGLE_KEY'] = KAGGLE_KEY
+
+print("✅ Kaggle credentials configured")
+print(f"Username: {KAGGLE_USERNAME}")
+print("\n⚠️  Remember to replace with your actual credentials!")
+
+# COMMAND ----------
+
+# DBTITLE 1,Download Dataset from Kaggle
+"""
+Download eCommerce Behavior Data from Kaggle
+
+Dataset: ecommerce-behavior-data-from-multi-category-store
+Size: ~32GB compressed, contains 7 CSV files (Oct 2019 - Apr 2020)
+"""
+
+import kaggle
+from kaggle.api.kaggle_api_extended import KaggleApi
+import zipfile
+import os
+
+# Initialize Kaggle API
+api = KaggleApi()
+api.authenticate()
+
+print("✅ Kaggle API authenticated successfully")
+
+# Dataset identifier
+dataset = "mkechinov/ecommerce-behavior-data-from-multi-category-store"
+
+# Download to temporary location first
+temp_download_path = "/tmp/kaggle_download"
+os.makedirs(temp_download_path, exist_ok=True)
+
+print(f"\n📥 Downloading dataset: {dataset}")
+print(f"Destination: {temp_download_path}")
+print("\n⚠️  This is a large dataset (~32GB). Download may take 10-20 minutes...\n")
+
+# Download dataset
+api.dataset_download_files(
+    dataset,
+    path=temp_download_path,
+    unzip=True  # Auto-extract after download
+)
+
+print("\n✅ Dataset downloaded and extracted successfully!")
+
+# List downloaded files
+downloaded_files = os.listdir(temp_download_path)
+print(f"\nDownloaded files ({len(downloaded_files)}):")
+for file in sorted(downloaded_files):
+    file_path = os.path.join(temp_download_path, file)
+    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    print(f"  • {file} ({file_size_mb:.2f} MB)")
+
+# COMMAND ----------
+
+# DBTITLE 1,Move Files to Unity Catalog Volume
+"""
+Move downloaded CSV files to Unity Catalog Volume
+
+Volume path: /Volumes/product_analytics/ecommerce/raw_data
+"""
+
+import shutil
+
+# Get volume path from config
+volume_path = config.catalog.volume_path
+
+print(f"📍 Target Volume: {volume_path}")
+print(f"\n📦 Moving files to volume...\n")
+
+# Create volume directory if it doesn't exist (though it should from SQL creation)
+os.makedirs(volume_path, exist_ok=True)
+
+# Move each CSV file to the volume
+moved_files = []
+for file in downloaded_files:
+    if file.endswith('.csv'):
+        source_path = os.path.join(temp_download_path, file)
+        dest_path = os.path.join(volume_path, file)
+        
+        # Copy file to volume
+        shutil.copy2(source_path, dest_path)
+        
+        file_size_mb = os.path.getsize(dest_path) / (1024 * 1024)
+        print(f"  ✅ {file} → {volume_path} ({file_size_mb:.2f} MB)")
+        moved_files.append(file)
+
+print(f"\n✅ Successfully moved {len(moved_files)} CSV files to volume!")
+
+# Cleanup temp directory
+shutil.rmtree(temp_download_path)
+print(f"\n🧹 Cleaned up temporary download directory")
+
+# COMMAND ----------
+
+# DBTITLE 1,Validate Data and Preview
+"""
+Validate the dataset and preview the data structure
+"""
+
+import pandas as pd
+from pyspark.sql import SparkSession
+
+print("="*80)
+print("DATA VALIDATION SUMMARY")
+print("="*80)
+
+# List all CSV files in the volume
+csv_files = [f for f in os.listdir(volume_path) if f.endswith('.csv')]
+print(f"\n📊 Total CSV files in volume: {len(csv_files)}\n")
+
+# Show file details
+total_size_gb = 0
+for file in sorted(csv_files):
+    file_path = os.path.join(volume_path, file)
+    file_size_gb = os.path.getsize(file_path) / (1024 * 1024 * 1024)
+    total_size_gb += file_size_gb
+    print(f"  • {file:<50} {file_size_gb:>8.2f} GB")
+
+print(f"\n💾 Total dataset size: {total_size_gb:.2f} GB")
+
+# Preview first file using pandas (small sample)
+if csv_files:
+    sample_file = sorted(csv_files)[0]
+    sample_path = os.path.join(volume_path, sample_file)
+    
+    print(f"\n🔍 Previewing schema from: {sample_file}")
+    print("="*80)
+    
+    # Read first 5 rows
+    df_preview = pd.read_csv(sample_path, nrows=5)
+    
+    print(f"\nColumns ({len(df_preview.columns)}):")
+    for col in df_preview.columns:
+        print(f"  • {col} ({df_preview[col].dtype})")
+    
+    print(f"\nSample data (first 5 rows):")
+    display(df_preview)
+    
+    # Count total rows in first file (approximate)
+    print(f"\n📄 Reading row count from {sample_file}...")
+    df_full = pd.read_csv(sample_path)
+    print(f"   Rows: {len(df_full):,}")
+    
+print("\n" + "="*80)
+print("✅ Data validation complete! Ready for ingestion pipeline.")
+print("="*80)
