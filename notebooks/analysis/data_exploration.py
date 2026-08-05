@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # DBTITLE 1,Load Configuration
 # Load platform configuration
 %run ../../config/platform_config
@@ -28,7 +32,7 @@ df = spark.read.format("csv") \
     .load(f"{volume_path}/*.csv")
 
 # Cache for faster subsequent operations (optional)
-df.cache()
+# df.cache()
 
 print(f"✅ Data loaded successfully!")
 print(f"\n📊 Total rows: {df.count():,}")
