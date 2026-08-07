@@ -445,3 +445,284 @@ print(f"   Table: {category_table}")
 print(f"   Rows: {df_categories_final.count():,}")
 print(f"\n💡 This is a SIMPLE dimension - extract unique values, no history tracking")
 print(f"   Rebuild if categories change (rare in production)")
+
+# COMMAND ----------
+
+# DBTITLE 1,Build dim_products (SCD Type 2 - THE GAME CHANGER)
+"""
+==============================================================================
+STEP 3: BUILD dim_products (SCD TYPE 2 - SLOWLY CHANGING DIMENSION)
+==============================================================================
+
+THIS IS THE MOST IMPORTANT PATTERN IN DATA WAREHOUSING!
+
+THOUGHT PROCESS:
+---------------
+Question: "What was the revenue at YESTERDAY'S prices?"
+Grain: One row per product per version (price changes = new row)
+Changes over time? YES! Prices change, brands might change
+Decision: SCD Type 2 - track every version of every product
+
+==============================================================================
+DECISION #1: Why SCD Type 2 for Products?
+==============================================================================
+
+Imagine this scenario:
+
+Nov 1:  iPhone 11 costs $799
+Nov 10: Someone buys it for $799  (event recorded)
+Nov 15: Price drops to $699
+Nov 20: Someone buys it for $699  (event recorded)
+
+**THE PROBLEM:**
+If we just keep "current" product data:
+
+  product_id | product_name | price
+  -----------|--------------|------
+  12345      | iPhone 11    | 699   <- Only current price!
+
+Now when we query Nov 10 sales:
+  SELECT product_name, price, quantity
+  FROM events e
+  JOIN products p ON e.product_id = p.product_id
+  WHERE event_date = '2019-11-10';
+
+RESULT: iPhone 11, $699, 1 unit  ❌ WRONG! It was $799 on Nov 10!
+
+**THE SOLUTION: SCD Type 2**
+
+  product_sk | product_id | product_name | price | effective_from | effective_to | is_current
+  -----------|------------|--------------|-------|----------------|--------------|------------
+  1001       | 12345      | iPhone 11    | 799   | 2019-11-01     | 2019-11-14   | FALSE
+  1002       | 12345      | iPhone 11    | 699   | 2019-11-15     | 9999-12-31   | TRUE
+
+Now we join on BOTH product_id AND date:
+  SELECT p.product_name, p.price, e.quantity
+  FROM events e
+  JOIN dim_products p 
+    ON e.product_id = p.product_id 
+    AND e.event_date >= p.effective_from 
+    AND e.event_date < p.effective_to
+  WHERE e.event_date = '2019-11-10';
+
+RESULT: iPhone 11, $799, 1 unit  ✅ CORRECT!
+
+==============================================================================
+DECISION #2: What Makes a "New Version"?
+==============================================================================
+
+Not every field change creates a new version. We track changes to:
+
+✅ Track these (Type 2):
+  - price (changes affect revenue calculations)
+  - brand (business attribute, might change)
+  - category_id (product might be recategorized)
+
+❌ Don't track these (just update):
+  - product_name typo fixes (cosmetic)
+  - display_order (UI concern, not analytical)
+  
+Rule: If historical accuracy matters for ANALYTICS, it's Type 2.
+
+==============================================================================
+DECISION #3: Surrogate Keys (product_sk)
+==============================================================================
+
+Why not just use product_id?
+
+❌ product_id = 12345 appears in MULTIPLE rows (one per version)
+✅ product_sk = 1001, 1002, 1003... (unique per version)
+
+Fact table joins:
+  fact_events.product_sk → dim_products.product_sk
+  
+This way:
+- Nov 10 events point to product_sk=1001 ($799 version)
+- Nov 20 events point to product_sk=1002 ($699 version)
+- Historical accuracy preserved!
+
+==============================================================================
+DECISION #4: effective_to = 9999-12-31 (The "End of Time" Pattern)
+==============================================================================
+
+Why 9999-12-31 instead of NULL?
+
+✅ 9999-12-31:
+  - Range queries work: event_date < effective_to
+  - No NULL handling needed
+  - Standard data warehouse pattern
+  - "This version is effective until the end of time"
+
+❌ NULL:
+  - Need: event_date < effective_to OR effective_to IS NULL
+  - Slower queries
+  - More complex logic
+
+==============================================================================
+DECISION #5: Initial Load vs Incremental Updates
+==============================================================================
+
+INITIAL LOAD (what we're doing today):
+- Take latest snapshot from Bronze
+- All products get effective_from = MIN(event_date)
+- All products get effective_to = 9999-12-31
+- All products get is_current = TRUE
+
+INCREMENTAL (future processing):
+- Detect changed products (price changed, brand changed)
+- Close out old version: SET effective_to = CURRENT_DATE - 1, is_current = FALSE
+- Insert new version: effective_from = CURRENT_DATE, effective_to = 9999-12-31, is_current = TRUE
+
+We'll build incremental processing later. Today = initial load.
+"""
+
+from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+print("="*80)
+print("BUILDING dim_products - SCD TYPE 2 (SLOWLY CHANGING DIMENSION)")
+print("="*80)
+print("\n🎓 This is THE most important pattern in data warehousing!")
+print("   We're tracking HISTORY - every version of every product.\n")
+
+print("-"*80)
+print("INITIAL LOAD STRATEGY")
+print("-"*80)
+print("Today: Take latest snapshot of each product from Bronze")
+print("Future: Detect changes and version them (we'll build that later)\n")
+
+# Read Bronze events and extract latest product attributes
+print("📦 Step 1: Extract latest product attributes from Bronze...")
+
+bronze_table = config.get_table('bronze_events')
+
+# Get the latest event for each product to capture current state
+window_spec = Window.partitionBy("product_id").orderBy(F.desc("event_time"))
+
+df_products_latest = spark.table(bronze_table) \
+    .filter(F.col("product_id").isNotNull()) \
+    .withColumn("row_num", F.row_number().over(window_spec)) \
+    .filter(F.col("row_num") == 1) \
+    .select(
+        "product_id",
+        "price",
+        "brand",
+        "category_code"
+    )
+
+product_count = df_products_latest.count()
+print(f"   Found {product_count:,} unique products in Bronze")
+
+print("\n🔧 Step 2: Enrich with category surrogate keys...")
+
+# Join with dim_categories to get category_sk
+df_categories = spark.table("product_analytics.ecommerce.silver_dim_categories")
+
+df_products_enriched = df_products_latest \
+    .join(
+        df_categories,
+        df_products_latest.category_code == df_categories.category_full_path,
+        "left"
+    ) \
+    .select(
+        df_products_latest.product_id,
+        df_products_latest.price,
+        df_products_latest.brand,
+        df_products_latest.category_code,
+        F.coalesce(df_categories.category_sk, F.lit(-1)).alias("category_sk")  # -1 = unknown
+    )
+
+print("   ✅ Products enriched with category_sk")
+
+# Clean up brands and handle nulls
+print("\n🧹 Step 3: Clean up product attributes...")
+
+df_products_clean = df_products_enriched \
+    .withColumn("brand_clean",
+                F.when(F.col("brand").isNull(), "unknown")
+                 .when(F.trim(F.col("brand")) == "", "unknown")
+                 .otherwise(F.lower(F.trim(F.col("brand"))))) \
+    .withColumn("price_clean",
+                F.when(F.col("price").isNull(), 0.0)
+                 .when(F.col("price") < 0, 0.0)  # Fix negative prices
+                 .otherwise(F.col("price"))) \
+    .drop("brand", "price") \
+    .withColumnRenamed("brand_clean", "brand") \
+    .withColumnRenamed("price_clean", "price")
+
+print("   ✅ Brands normalized, nulls handled, negative prices fixed")
+
+# Get the earliest event date for effective_from
+print("\n📅 Step 4: Set effective dates (SCD Type 2 metadata)...")
+
+min_date = spark.table(bronze_table).selectExpr("min(event_date) as min_date").collect()[0]['min_date']
+print(f"   Earliest event date: {min_date}")
+print(f"   All products will be effective from: {min_date}")
+print(f"   All products will be effective to: 9999-12-31 (end of time)")
+print(f"   All products will be current: TRUE")
+
+df_products_versioned = df_products_clean \
+    .withColumn("effective_from", F.lit(min_date).cast("date")) \
+    .withColumn("effective_to", F.lit("9999-12-31").cast("date")) \
+    .withColumn("is_current_version", F.lit(True)) \
+    .withColumn("version_number", F.lit(1))  # All start at version 1
+
+print("   ✅ SCD Type 2 metadata added")
+
+# Generate surrogate keys
+print("\n🔑 Step 5: Generate surrogate keys (product_sk)...")
+print("   Why surrogate keys? So each VERSION has a unique ID!")
+print("   product_id=12345 might have product_sk=1001, 1002, 1003 (3 versions)\n")
+
+window_spec_sk = Window.orderBy("product_id")
+
+df_products_final = df_products_versioned \
+    .withColumn("product_sk", F.row_number().over(window_spec_sk)) \
+    .withColumn("created_at", F.current_timestamp()) \
+    .withColumn("updated_at", F.current_timestamp()) \
+    .select(
+        "product_sk",              # Surrogate key (PRIMARY KEY)
+        "product_id",              # Business key (can repeat across versions)
+        "brand",
+        "price",
+        "category_sk",             # Foreign key to dim_categories
+        "category_code",           # Denormalized for convenience
+        "effective_from",          # SCD Type 2: version start date
+        "effective_to",            # SCD Type 2: version end date (9999-12-31 = current)
+        "is_current_version",      # SCD Type 2: TRUE if latest version
+        "version_number",          # SCD Type 2: 1, 2, 3... (1 for all on initial load)
+        "created_at",
+        "updated_at"
+    )
+
+print(f"   Generated {df_products_final.count():,} surrogate keys")
+
+print("\n📊 Step 6: Preview dim_products:")
+df_products_final.orderBy("product_sk").show(10, truncate=False)
+
+print("\n📊 Sample products with multiple versions (after future updates):")
+print("   (Right now all products are version 1 - we'll add versioning logic later)")
+df_products_final.filter(F.col("version_number") > 1).show(5, truncate=False)
+
+print("\n💾 Step 7: Write to Delta table...")
+product_table = "product_analytics.ecommerce.silver_dim_products"
+
+df_products_final.write.format("delta") \
+    .mode("overwrite") \
+    .option("overwriteSchema", "true") \
+    .saveAsTable(product_table)
+
+print(f"\n✅ dim_products created!")
+print(f"   Table: {product_table}")
+print(f"   Rows: {df_products_final.count():,}")
+print(f"   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
+print(f"   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
+
+print(f"\n🎓 KEY LEARNINGS:")
+print(f"   1. product_sk = surrogate key (unique per VERSION)")
+print(f"   2. product_id = business key (same across versions)")
+print(f"   3. effective_from/to = date range when this version was active")
+print(f"   4. is_current_version = TRUE for latest version")
+print(f"   5. This is INITIAL LOAD - all products are version 1")
+print(f"   6. Future: When price changes, we'll INSERT new row with version 2")
+print(f"\n💡 Next: We'll build incremental SCD Type 2 processing!")
