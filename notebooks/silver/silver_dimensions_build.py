@@ -969,3 +969,357 @@ print(f"   4. effective_from = user's first_seen_date (when they started)")
 print(f"   5. This is INITIAL LOAD - all users are version 1")
 print(f"   6. Future: When segment changes, INSERT new row with new segment")
 print(f"\n💡 Next: Build fact tables that JOIN to these dimensions via surrogate keys!")
+
+# COMMAND ----------
+
+# DBTITLE 1,DEEP DIVE: How to Generate Surrogate Keys (Interview Critical)
+"""
+==============================================================================
+DEEP DIVE: HOW TO ACTUALLY GENERATE SURROGATE KEYS
+==============================================================================
+
+THE INTERVIEW GAP:
+-----------------
+You can explain WHY surrogate keys are needed (versioning, fast joins).
+But can you explain HOW to actually generate them?
+
+This is where candidates stumble: "I'll create a function to hash the ID..."
+WRONG! That won't work for SCD Type 2.
+
+==============================================================================
+APPROACH 1: row_number() OVER (ORDER BY ...) - WHAT WE'RE USING
+==============================================================================
+
+HOW IT WORKS:
+------------
+Spark's row_number() window function assigns sequential integers (1, 2, 3...)
+to each row based on an ordering.
+
+CODE:
+-----
+window_spec = Window.orderBy("product_id")
+df.withColumn("product_sk", F.row_number().over(window_spec))
+
+WHAT HAPPENS:
+------------
+product_id | price | effective_from | effective_to  | product_sk
+-----------|-------|----------------|---------------|------------
+100        | 10.00 | 2019-10-01     | 2019-11-15    | 1
+100        | 12.00 | 2019-11-16     | 9999-12-31    | 2
+200        | 5.00  | 2019-10-01     | 9999-12-31    | 3
+300        | 8.00  | 2019-10-01     | 2019-10-20    | 4
+300        | 9.00  | 2019-10-21     | 9999-12-31    | 5
+
+row_number() assigns:
+- Row 1 gets product_sk = 1
+- Row 2 gets product_sk = 2
+- Row 3 gets product_sk = 3
+- etc.
+
+PROS:
+✅ Simple, clean sequential integers (1, 2, 3, 4...)
+✅ No gaps in the sequence
+✅ Deterministic (same input = same output)
+✅ Works for both initial load AND incremental updates
+✅ No external dependencies (no database sequences needed)
+
+CONS:
+❌ Entire dataset must be scanned to assign keys (not scalable for HUGE datasets)
+❌ Keys change if you rebuild the dimension from scratch
+❌ Can't generate keys in parallel across partitions (single partition operation)
+
+WHEN TO USE:
+- Initial dimension loads (what we're doing now)
+- Small to medium dimensions (< 100M rows)
+- When you rebuild dimensions periodically
+
+==============================================================================
+APPROACH 2: monotonically_increasing_id() - PARALLEL FRIENDLY
+==============================================================================
+
+HOW IT WORKS:
+------------
+Spark's monotonically_increasing_id() generates unique 64-bit integers.
+Each partition gets a range, so keys can be generated in parallel.
+
+CODE:
+-----
+df.withColumn("product_sk", F.monotonically_increasing_id())
+
+WHAT HAPPENS:
+------------
+product_id | price | product_sk
+-----------|-------|------------------
+100        | 10.00 | 0
+100        | 12.00 | 8589934592      ← Gap!
+200        | 5.00  | 17179869184     ← Gap!
+300        | 8.00  | 25769803776     ← Gap!
+
+PROS:
+✅ Fast - generates keys in parallel across partitions
+✅ Scalable to billions of rows
+✅ No sorting required
+
+CONS:
+❌ Huge gaps in keys (8589934592, 17179869184...)
+❌ Keys are not sequential (product_sk=1, 2, 3...)
+❌ Less readable for debugging
+
+WHEN TO USE:
+- Very large dimensions (100M+ rows)
+- When you need maximum parallelism
+- When key readability doesn't matter
+
+==============================================================================
+APPROACH 3: Hash of Natural Key - DETERMINISTIC ACROSS RUNS
+==============================================================================
+
+HOW IT WORKS:
+------------
+Hash the natural key (product_id) to generate an integer.
+
+CODE:
+-----
+df.withColumn("product_sk", 
+              F.abs(F.hash(F.col("product_id"))).cast("int"))
+
+WHAT HAPPENS:
+------------
+product_id | price | effective_from | product_sk
+-----------|-------|----------------|------------------
+100        | 10.00 | 2019-10-01     | 1453872103
+100        | 12.00 | 2019-11-16     | 1453872103  ← SAME KEY!
+200        | 5.00  | 2019-10-01     | 892471923
+
+THE PROBLEM:
+❌ Same product_id = same hash = DUPLICATE surrogate keys!
+❌ This BREAKS SCD Type 2! We need unique keys per VERSION!
+
+FIX: Hash product_id + version_number:
+df.withColumn("product_sk", 
+              F.abs(F.hash(F.concat(F.col("product_id"), 
+                                    F.col("version_number")))).cast("int"))
+
+product_id | version | product_sk
+-----------|---------|------------------
+100        | 1       | 1453872103
+100        | 2       | 2891274856  ← Different!
+200        | 1       | 892471923
+
+PROS:
+✅ Deterministic - rebuild gives same keys
+✅ No sorting needed
+✅ Parallel-friendly
+
+CONS:
+❌ Hash collisions possible (rare but not impossible)
+❌ Keys are not sequential
+❌ Less readable
+
+WHEN TO USE:
+- When you need deterministic keys across rebuilds
+- When you're synchronizing with external systems
+- When rebuilds must preserve existing surrogate keys
+
+==============================================================================
+APPROACH 4: Database Sequence / Identity Column - RDBMS STANDARD
+==============================================================================
+
+HOW IT WORKS:
+------------
+Database generates keys automatically (Postgres SERIAL, Oracle SEQUENCE).
+
+SQL:
+----
+CREATE TABLE dim_products (
+    product_sk SERIAL PRIMARY KEY,  -- Auto-generated
+    product_id INT,
+    price DECIMAL
+);
+
+INSERT INTO dim_products (product_id, price) 
+VALUES (100, 10.00);  -- product_sk=1 assigned automatically
+
+PROS:
+✅ Database handles it - no manual code
+✅ Guaranteed unique
+✅ Transaction-safe
+
+CONS:
+❌ Not available in Spark/Delta (Spark is distributed, no global sequence)
+❌ Slower for bulk inserts (each row needs sequence value)
+❌ Not portable across databases
+
+WHEN TO USE:
+- Traditional data warehouses (Snowflake, Redshift, Postgres)
+- Row-by-row inserts (OLTP)
+- Not applicable to Spark/Delta
+
+==============================================================================
+APPROACH 5: UUID / GUID - GLOBALLY UNIQUE
+==============================================================================
+
+HOW IT WORKS:
+------------
+Generate a globally unique identifier (UUID).
+
+CODE:
+-----
+from pyspark.sql.functions import expr
+df.withColumn("product_sk", expr("uuid()"))
+
+WHAT HAPPENS:
+------------
+product_id | price | product_sk
+-----------|-------|--------------------------------------
+100        | 10.00 | "550e8400-e29b-41d4-a716-446655440000"
+100        | 12.00 | "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+
+PROS:
+✅ Truly unique - no collisions
+✅ Can generate offline, merge later
+✅ Good for distributed systems
+
+CONS:
+❌ 36 characters vs 4-8 bytes for integer
+❌ Slower joins (string comparison vs integer)
+❌ Takes more storage
+❌ Not human-readable
+
+WHEN TO USE:
+- Distributed systems that can't coordinate
+- When you need to generate keys offline
+- Modern cloud-native architectures
+- Not for traditional star schema (integers are standard)
+
+==============================================================================
+WHY WE USE row_number() FOR THIS PROJECT
+==============================================================================
+
+DECISION CRITERIA:
+
+1. READABILITY:
+   ✅ product_sk = 1, 2, 3, 4... (easy to understand)
+   vs 8589934592, 1453872103 (hard to debug)
+
+2. INTERVIEW STANDARD:
+   ✅ row_number() is the textbook approach
+   ✅ What interviewers expect to see
+
+3. INITIAL LOAD:
+   ✅ We're doing initial load, not real-time streaming
+   ✅ Can afford full scan
+
+4. SIZE:
+   ✅ Dimensions are small (< 10M rows each)
+   ✅ row_number() performance is fine
+
+==============================================================================
+INCREMENTAL UPDATES - HOW TO EXTEND SURROGATE KEYS
+==============================================================================
+
+When adding new versions:
+
+STEP 1: Get max existing surrogate key
+max_sk = spark.table("dim_products") \
+    .selectExpr("max(product_sk) as max_sk") \
+    .collect()[0]['max_sk']
+
+STEP 2: Generate new keys starting from max_sk + 1
+window_spec = Window.orderBy("product_id")
+new_rows = df_new_versions \
+    .withColumn("row_num", F.row_number().over(window_spec)) \
+    .withColumn("product_sk", F.col("row_num") + max_sk)
+
+STEP 3: Append to existing dimension
+new_rows.write.mode("append").saveAsTable("dim_products")
+
+RESULT:
+Existing keys: 1, 2, 3, 4, 5
+New keys: 6, 7, 8, 9, 10
+No duplicates, sequence continues!
+
+==============================================================================
+KEY TAKEAWAYS FOR INTERVIEWS
+==============================================================================
+
+1. Surrogate keys are INTEGERS generated by YOU, not hashes of business keys
+
+2. row_number() is the standard approach:
+   - Window function orders rows
+   - Assigns sequential integers
+   - Simple, readable, deterministic
+
+3. For SCD Type 2, NEVER hash just the business key:
+   ❌ hash(product_id) - gives same SK for all versions
+   ✅ row_number() - gives unique SK per version
+
+4. For incremental updates:
+   - Get max existing SK
+   - Start new keys from max + 1
+   - Maintain sequence
+
+5. Alternative approaches exist (monotonically_increasing_id, hash, UUID)
+   but row_number() is the interview standard for star schema dimensions
+"""
+
+from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+print("="*80)
+print("SURROGATE KEY GENERATION - THE MECHANICS")
+print("="*80)
+print()
+print("DEMONSTRATION: Let's see row_number() in action")
+print()
+
+# Create a sample dataset with multiple versions of the same product
+data = [
+    (100, 10.00, 1, "2019-10-01", "2019-11-15"),
+    (100, 12.00, 2, "2019-11-16", "9999-12-31"),
+    (200, 5.00, 1, "2019-10-01", "9999-12-31"),
+    (300, 8.00, 1, "2019-10-01", "2019-10-20"),
+    (300, 9.00, 2, "2019-10-21", "9999-12-31"),
+    (400, 15.00, 1, "2019-10-01", "9999-12-31"),
+]
+
+df_sample = spark.createDataFrame(data, 
+                                   ["product_id", "price", "version_number", 
+                                    "effective_from", "effective_to"])
+
+print("BEFORE: Data with product_id and version_number, no surrogate key yet")
+df_sample.orderBy("product_id", "version_number").show()
+
+# Generate surrogate keys using row_number()
+window_spec = Window.orderBy("product_id", "version_number")
+df_with_sk = df_sample.withColumn("product_sk", F.row_number().over(window_spec))
+
+print("AFTER: row_number() assigned sequential surrogate keys (product_sk)")
+df_with_sk.orderBy("product_sk").show()
+
+print()
+print("KEY OBSERVATIONS:")
+print("  1. product_id=100 has TWO rows (2 versions) with different product_sk (1, 2)")
+print("  2. product_id=300 has TWO rows (2 versions) with different product_sk (4, 5)")
+print("  3. Each row gets a UNIQUE product_sk, even if product_id repeats")
+print("  4. Keys are sequential: 1, 2, 3, 4, 5, 6 (no gaps)")
+print()
+print("THIS IS HOW SCD TYPE 2 WORKS!")
+print("  - product_sk is the primary key (unique per row)")
+print("  - product_id is the business key (repeats across versions)")
+print("  - Fact table joins on product_sk, not product_id")
+print()
+print("ALTERNATIVE: monotonically_increasing_id() for large datasets")
+df_with_monotonic = df_sample.withColumn("product_sk_monotonic", 
+                                          F.monotonically_increasing_id())
+df_with_monotonic.orderBy("product_id", "version_number").show()
+
+print()
+print("Notice the HUGE gaps: 0, 8589934592, 17179869184...")
+print("  - Faster for massive datasets (parallel generation)")
+print("  - But less readable")
+print("  - Use row_number() unless you have 100M+ rows")
+print()
+print("="*80)
+print("NEXT: We'll build INCREMENTAL SCD Type 2 processing with proper SK extension")
+print("="*80)
