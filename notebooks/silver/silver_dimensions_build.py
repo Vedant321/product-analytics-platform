@@ -726,3 +726,246 @@ print(f"   4. is_current_version = TRUE for latest version")
 print(f"   5. This is INITIAL LOAD - all products are version 1")
 print(f"   6. Future: When price changes, we'll INSERT new row with version 2")
 print(f"\n💡 Next: We'll build incremental SCD Type 2 processing!")
+
+# COMMAND ----------
+
+# DBTITLE 1,Build dim_users (SCD Type 2 - Behavioral Segments)
+"""
+==============================================================================
+STEP 4: BUILD dim_users (SCD TYPE 2 - USER BEHAVIORAL SEGMENTS)
+==============================================================================
+
+THOUGHT PROCESS:
+---------------
+Question: "How did power users behave BEFORE they became power users?"
+Grain: One row per user per behavioral segment change
+Changes over time? YES! Users evolve (casual → engaged → power user)
+Decision: SCD Type 2 - track user evolution over time
+
+==============================================================================
+DECISION #1: Why SCD Type 2 for Users?
+==============================================================================
+
+Imagine this user journey:
+
+Oct 1-15:  User starts as "casual" (1-2 events per day)
+Oct 16-31: User becomes "engaged" (5-10 events per day)
+Nov 1+:    User becomes "power_user" (20+ events per day)
+
+**THE BUSINESS QUESTION:**
+"What products did this user buy WHEN they were casual vs power_user?"
+"Did their purchase behavior change as they engaged more?"
+
+**WITHOUT SCD Type 2:**
+user_id | segment
+--------|----------
+12345   | power_user  ← Only current state!
+
+All historical events now look like they happened when user was power_user.
+WRONG! They were casual back in October!
+
+**WITH SCD Type 2:**
+user_sk | user_id | segment    | effective_from | effective_to | is_current
+--------|---------|------------|----------------|--------------|------------
+1001    | 12345   | casual     | 2019-10-01     | 2019-10-15   | FALSE
+1002    | 12345   | engaged    | 2019-10-16     | 2019-10-31   | FALSE
+1003    | 12345   | power_user | 2019-11-01     | 9999-12-31   | TRUE
+
+Now we can answer:
+- What did they buy as casual? (join to user_sk=1001)
+- What did they buy as engaged? (join to user_sk=1002)
+- What do they buy now as power_user? (join to user_sk=1003)
+
+✅ User evolution tracked!
+
+==============================================================================
+DECISION #2: What Defines User Segments?
+==============================================================================
+
+For this platform, we'll segment users by activity level:
+
+**casual:**      1-5 total events
+**engaged:**     6-20 total events
+**power_user:**  21+ total events
+
+In a real system, you might use:
+- Recency (last activity date)
+- Monetary value (total spend)
+- Product affinity (categories browsed)
+- Device type (mobile vs desktop)
+
+**Key point:** Segments CHANGE as users interact more!
+That's why we need SCD Type 2.
+
+==============================================================================
+DECISION #3: Initial Load Strategy
+==============================================================================
+
+For initial load:
+1. Calculate CURRENT segment based on all events to date
+2. Set effective_from = user's first event date
+3. Set effective_to = 9999-12-31
+4. Set is_current = TRUE
+
+Future incremental processing:
+1. Recalculate segment daily/weekly
+2. If segment changed:
+   - Close old version (effective_to = yesterday, is_current = FALSE)
+   - Insert new version (effective_from = today, is_current = TRUE)
+
+==============================================================================
+DECISION #4: Why Not Just Add segment to fact_events?
+==============================================================================
+
+**Bad approach:**
+fact_events:
+  user_id | event_date | user_segment  ← What segment? Current or at event time?
+  
+**Good approach (SCD Type 2):**
+fact_events:     dim_users:
+  user_sk   →    user_sk | user_id | segment | effective_from | effective_to
+  event_date     1001    | 12345   | casual  | 2019-10-01     | 2019-10-15
+                 1002    | 12345   | engaged | 2019-10-16     | 9999-12-31
+
+Join:
+  WHERE e.user_sk = u.user_sk  ← Already correct! user_sk captures moment in time
+  
+No date range join needed because user_sk is set at event time!
+"""
+
+from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+print("="*80)
+print("BUILDING dim_users - SCD TYPE 2 (BEHAVIORAL SEGMENTS)")
+print("="*80)
+print("\n👥 Tracking user evolution: casual → engaged → power_user\n")
+
+print("-"*80)
+print("INITIAL LOAD STRATEGY")
+print("-"*80)
+print("Today: Calculate current segment based on total activity")
+print("Future: Recalculate segments and version when users evolve\n")
+
+# Extract user activity from Bronze
+print("📈 Step 1: Calculate user activity metrics from Bronze...")
+
+bronze_table = config.get_table('bronze_events')
+
+df_user_activity = spark.table(bronze_table) \
+    .filter(F.col("user_id").isNotNull()) \
+    .groupBy("user_id") \
+    .agg(
+        F.count("*").alias("total_events"),
+        F.countDistinct("event_type").alias("event_types_count"),
+        F.min("event_date").alias("first_seen_date"),
+        F.max("event_date").alias("last_seen_date"),
+        F.countDistinct("event_date").alias("active_days"),
+        F.sum(F.when(F.col("event_type") == "purchase", 1).otherwise(0)).alias("purchase_count"),
+        F.sum(F.when(F.col("event_type") == "view", 1).otherwise(0)).alias("view_count"),
+        F.sum(F.when(F.col("event_type") == "cart", 1).otherwise(0)).alias("cart_count")
+    )
+
+user_count = df_user_activity.count()
+print(f"   Found {user_count:,} unique users in Bronze")
+
+# Calculate user segment based on activity
+print("\n🎯 Step 2: Calculate behavioral segments...")
+print("   Segments: casual (1-5 events), engaged (6-20 events), power_user (21+ events)")
+
+df_users_segmented = df_user_activity \
+    .withColumn("user_segment",
+                F.when(F.col("total_events") >= 21, "power_user")
+                 .when(F.col("total_events") >= 6, "engaged")
+                 .otherwise("casual")) \
+    .withColumn("days_active", 
+                F.datediff(F.col("last_seen_date"), F.col("first_seen_date")) + 1) \
+    .withColumn("avg_events_per_day",
+                F.round(F.col("total_events") / F.col("days_active"), 2))
+
+print("   ✅ Segments calculated")
+
+print("\n📊 Segment distribution:")
+df_users_segmented.groupBy("user_segment").count().orderBy(F.desc("count")).show()
+
+# Add SCD Type 2 metadata
+print("\n📅 Step 3: Add SCD Type 2 metadata (effective dates, versioning)...")
+print("   All users start at version 1 with effective_from = first_seen_date")
+
+df_users_versioned = df_users_segmented \
+    .withColumn("effective_from", F.col("first_seen_date")) \
+    .withColumn("effective_to", F.lit("9999-12-31").cast("date")) \
+    .withColumn("is_current_version", F.lit(True)) \
+    .withColumn("version_number", F.lit(1))
+
+print("   ✅ SCD Type 2 metadata added")
+
+# Generate surrogate keys
+print("\n🔑 Step 4: Generate surrogate keys (user_sk)...")
+print("   Why? So each user SEGMENT VERSION gets a unique ID!")
+print("   user_id=12345 might have user_sk=5001 (casual), 5002 (engaged), 5003 (power_user)\n")
+
+window_spec = Window.orderBy("user_id")
+
+df_users_final = df_users_versioned \
+    .withColumn("user_sk", F.row_number().over(window_spec)) \
+    .withColumn("created_at", F.current_timestamp()) \
+    .withColumn("updated_at", F.current_timestamp()) \
+    .select(
+        "user_sk",               # Surrogate key (PRIMARY KEY)
+        "user_id",               # Business key (can repeat across versions)
+        "user_segment",          # casual / engaged / power_user
+        "total_events",
+        "event_types_count",
+        "first_seen_date",
+        "last_seen_date",
+        "active_days",
+        "avg_events_per_day",
+        "purchase_count",
+        "view_count",
+        "cart_count",
+        "effective_from",        # SCD Type 2: version start date
+        "effective_to",          # SCD Type 2: version end date
+        "is_current_version",    # SCD Type 2: TRUE if latest
+        "version_number",        # SCD Type 2: 1, 2, 3...
+        "created_at",
+        "updated_at"
+    )
+
+print(f"   Generated {df_users_final.count():,} surrogate keys")
+
+print("\n📊 Step 5: Preview dim_users:")
+df_users_final.orderBy(F.desc("total_events")).show(10, truncate=False)
+
+print("\n💾 Step 6: Write to Delta table...")
+user_table = "product_analytics.ecommerce.silver_dim_users"
+
+df_users_final.write.format("delta") \
+    .mode("overwrite") \
+    .option("overwriteSchema", "true") \
+    .saveAsTable(user_table)
+
+print(f"\n✅ dim_users created!")
+print(f"   Table: {user_table}")
+print(f"   Rows: {df_users_final.count():,}")
+print(f"   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
+print(f"   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
+
+print(f"\n📊 Segment breakdown:")
+df_users_final.groupBy("user_segment") \
+    .agg(
+        F.count("*").alias("user_count"),
+        F.round(F.avg("total_events"), 2).alias("avg_events"),
+        F.round(F.avg("purchase_count"), 2).alias("avg_purchases")
+    ) \
+    .orderBy(F.desc("user_count")) \
+    .show()
+
+print(f"\n🎓 KEY LEARNINGS:")
+print(f"   1. user_sk = surrogate key (unique per SEGMENT VERSION)")
+print(f"   2. user_id = business key (same user, different segments over time)")
+print(f"   3. user_segment tracks behavioral evolution (casual → engaged → power_user)")
+print(f"   4. effective_from = user's first_seen_date (when they started)")
+print(f"   5. This is INITIAL LOAD - all users are version 1")
+print(f"   6. Future: When segment changes, INSERT new row with new segment")
+print(f"\n💡 Next: Build fact tables that JOIN to these dimensions via surrogate keys!")
