@@ -42,8 +42,8 @@ class TableNames:
     bronze_events: str = "bronze_events"
     
     # Silver Layer - Cleaned & Validated
-    silver_events: str = "silver_events"
-    silver_sessions: str = "silver_sessions"
+    silver_events_enriched: str = "silver_events_enriched"
+    silver_sessions_aggregated: str = "silver_sessions_aggregated"
     silver_users: str = "silver_users"
     
     # Gold Layer - Analytics Ready
