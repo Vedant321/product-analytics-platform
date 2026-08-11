@@ -1,7 +1,7 @@
 # Databricks notebook source
-# DBTITLE 1,Kafka Consumer - Spark Structured Streaming
+# DBTITLE 1,Event Consumer - Streaming Simulation
 # MAGIC %md
-# MAGIC # Kafka Event Consumer (Spark Structured Streaming)
+# MAGIC # Event Consumer - Streaming Simulation
 # MAGIC
 # MAGIC **Purpose:** Reads events from Kafka in real-time and writes to Delta Lake
 # MAGIC
@@ -37,45 +37,48 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Imports and Configuration
+# DBTITLE 1,Configuration
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS = 'localhost:9092'
-KAFKA_TOPIC = 'ecommerce-events'
-
-# Delta Lake Configuration
+# Streaming Configuration
+INPUT_TABLE = 'product_analytics.ecommerce.streaming_events_input'
 BRONZE_TABLE = 'product_analytics.ecommerce.bronze_streaming_events'
 CHECKPOINT_LOCATION = '/tmp/checkpoints/streaming_events'
+TRIGGER_INTERVAL = '10 seconds'
 
-# Streaming Configuration
-TRIGGER_INTERVAL = '10 seconds'  # Micro-batch interval
-MAX_OFFSETS_PER_TRIGGER = 10000  # Limit records per batch (prevents overload)
-
-# COMMAND ----------
-
-# DBTITLE 1,Define Event Schema
-# Define the JSON schema for incoming events
-# This tells Spark how to parse the JSON payload
-event_schema = StructType([
-    StructField('event_id', StringType(), False),
-    StructField('event_type', StringType(), False),
-    StructField('user_id', IntegerType(), False),
-    StructField('product_id', IntegerType(), False),
-    StructField('category_id', IntegerType(), False),
-    StructField('event_time', StringType(), False),  # ISO timestamp as string
-    StructField('price', DoubleType(), True),
-    StructField('quantity', IntegerType(), True),
-    StructField('revenue', DoubleType(), True)
-])
-
-print("✅ Event schema defined")
+print(f"📥 Input: {INPUT_TABLE}")
+print(f"📤 Output: {BRONZE_TABLE}")
+print(f"💾 Checkpoint: {CHECKPOINT_LOCATION}")
 
 # COMMAND ----------
 
-# DBTITLE 1,Read from Kafka (Binary Stream)
-# Read from Kafka
+# DBTITLE 1,Read Delta Stream
+# Read from Delta table as a streaming source
+# Key concept: Delta tables CAN be read as streams!
+# - Spark monitors Delta log for new commits
+# - Only reads newly appended data (not full scan)
+# - Checkpoint tracks which version processed
+
+input_stream = spark.readStream \
+    .format('delta') \
+    .table(INPUT_TABLE)
+
+print("✅ Delta stream reader configured")
+print(f"   Reading from: {INPUT_TABLE}")
+print("\nStream Schema:")
+input_stream.printSchema()
+
+# COMMAND ----------
+
+# DBTITLE 1,Add Metadata
+# Add processing metadata
+# In production: validate schema, handle nulls, log bad records
+parsed_stream = input_stream \
+    .withColumn('processed_time', current_timestamp()) \
+    .withColumn('source', lit('streaming_simulation'))
+
+print("✅ Stream enriched with metadata")
 # format('kafka'): Uses Kafka as source
 # option('subscribe', topic): Which topic to read from
 # option('startingOffsets', 'latest'): Start from newest messages (use 'earliest' for historical)
@@ -124,7 +127,7 @@ parsed_stream.printSchema()
 
 # COMMAND ----------
 
-# DBTITLE 1,Create Bronze Delta Table (if not exists)
+# DBTITLE 1,Create Bronze Table
 # MAGIC %sql
 # MAGIC -- Create bronze table for raw streaming events
 # MAGIC CREATE TABLE IF NOT EXISTS product_analytics.ecommerce.bronze_streaming_events (
@@ -137,7 +140,10 @@ parsed_stream.printSchema()
 # MAGIC     price DOUBLE,
 # MAGIC     quantity INT,
 # MAGIC     revenue DOUBLE,
-# MAGIC     ingestion_time TIMESTAMP NOT NULL
+# MAGIC     batch_id INT,
+# MAGIC     produced_at TIMESTAMP,
+# MAGIC     processed_time TIMESTAMP NOT NULL,
+# MAGIC     source STRING
 # MAGIC )
 # MAGIC USING DELTA
 # MAGIC COMMENT 'Real-time events from Kafka (bronze layer)';
@@ -151,8 +157,13 @@ parsed_stream.printSchema()
 
 # COMMAND ----------
 
-# DBTITLE 1,Write Stream to Delta Lake
-# Write the parsed stream to Delta Lake
+# DBTITLE 1,Start Streaming
+# Write stream to Bronze Delta table
+# Key concepts:
+# - format('delta'): ACID transactions
+# - outputMode('append'): Bronze is immutable
+# - checkpointLocation: Exactly-once semantics
+# - Delta transaction log prevents duplicates!
 # format('delta'): Write to Delta format
 # outputMode('append'): Only add new rows (no updates/deletes)
 # option('checkpointLocation'): For fault tolerance and exactly-once
