@@ -12,6 +12,35 @@ st.set_page_config(
     layout="wide"
 )
 
+# ============ CUSTOM CSS - REDUCE GAPS ============
+st.markdown("""
+<style>
+    /* Reduce top padding of main content area */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0rem !important;
+    }
+    
+    /* Reduce spacing around title */
+    h1 {
+        margin-top: 0rem !important;
+        margin-bottom: 0.5rem !important;
+        padding-top: 0rem !important;
+    }
+    
+    /* Tighter spacing for metrics */
+    [data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+    }
+    
+    /* Reduce chart margins */
+    .plotly {
+        margin-bottom: 0.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # ============ DATABRICKS SDK CONNECTION ============
 @st.cache_resource
 def get_workspace_client():
@@ -311,24 +340,28 @@ elif selected_page == "🛍️ Products":
                 except:
                     st.metric("Avg Revenue/Brand", "Data error")
             
-            # Treemap: Visual hierarchy of products by revenue
-            st.markdown("### 🗺️ Product Revenue Treemap")
-            fig_tree = px.treemap(products_df.head(15), 
-                                 path=['product_name'], 
-                                 values='total_revenue',
-                                 title='Brand Revenue Distribution (Top 15)',
-                                 color='total_revenue',
-                                 color_continuous_scale='RdYlGn')
-            st.plotly_chart(fig_tree, use_container_width=True)
+            # === ROW 2: Treemap + Scatter in 2 columns ===
+            col_tree, col_scatter = st.columns([1, 1])
             
-            # Scatter: Revenue vs Quantity Sold
-            st.markdown("### 📊 Revenue vs Quantity Analysis")
-            fig_scatter = px.scatter(products_df.head(15), 
-                                    x='total_quantity_sold', 
-                                    y='total_revenue',
-                                    size='total_purchases',
-                                    hover_data=['product_name'],
-                                    title='Revenue vs Quantity Sold (bubble size = purchases)',
+            with col_tree:
+                st.markdown("### 🗺️ Revenue Treemap")
+                fig_tree = px.treemap(products_df.head(15), 
+                                     path=['product_name'], 
+                                     values='total_revenue',
+                                     title='Brand Revenue Distribution',
+                                     color='total_revenue',
+                                     color_continuous_scale='RdYlGn',
+                                     height=450)
+                st.plotly_chart(fig_tree, use_container_width=True)
+            
+            with col_scatter:
+                st.markdown("### 📊 Revenue vs Quantity")
+                fig_scatter = px.scatter(products_df.head(15), 
+                                        x='total_quantity_sold', 
+                                        y='total_revenue',
+                                        size='total_purchases',
+                                        hover_data=['product_name'],
+                                        title='Revenue vs Units Sold',
                                     labels={'total_quantity_sold': 'Units Sold (Quantity)', 
                                            'total_revenue': 'Revenue (USD)'},
                                     color='total_revenue',
@@ -386,31 +419,35 @@ elif selected_page == "📅 Categories":
                 fig.update_xaxes(tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True)
             
-            # Row 2: Performance comparison
-            st.markdown("### 📈 Category Performance Comparison")
+            # === ROW 2: Performance Comparison + AOV in 2 columns ===
+            col_perf, col_aov = st.columns([1, 1])
             
-            # Multi-metric bar chart
-            fig_multi = px.bar(categories_df, 
-                              x='category_name', 
-                              y=['total_revenue', 'total_purchases'],
-                              title='Revenue vs Purchases by Category',
-                              labels={'value': 'Amount (USD/Count)', 'variable': 'Metric', 'category_name': 'Category'},
-                              barmode='group',
-                              color_discrete_map={'total_revenue': '#636EFA', 'total_purchases': '#EF553B'})
-            fig_multi.update_xaxes(tickangle=-45)
-            st.plotly_chart(fig_multi, use_container_width=True)
+            with col_perf:
+                st.markdown("### 📈 Performance")
+                # Multi-metric bar chart
+                fig_multi = px.bar(categories_df, 
+                                  x='category_name', 
+                                  y=['total_revenue', 'total_purchases'],
+                                  title='Revenue vs Purchases',
+                                  labels={'value': 'Amount (USD/Count)', 'variable': 'Metric', 'category_name': 'Category'},
+                                  barmode='group',
+                                  color_discrete_map={'total_revenue': '#636EFA', 'total_purchases': '#EF553B'},
+                                  height=400)
+                fig_multi.update_xaxes(tickangle=-45)
+                st.plotly_chart(fig_multi, use_container_width=True)
             
-            # Avg Order Value by Category
-            st.markdown("### 💰 Average Order Value by Category")
-            categories_df['aov_numeric'] = pd.to_numeric(categories_df['avg_order_value'], errors='coerce')
-            fig_aov = px.bar(categories_df.sort_values('aov_numeric', ascending=False), 
-                            x='category_name', y='aov_numeric',
-                            title='Which categories have the highest AOV?',
-                            labels={'aov_numeric': 'Avg Order Value (USD)', 'category_name': 'Category'},
-                            color='aov_numeric',
-                            color_continuous_scale='Greens')
-            fig_aov.update_xaxes(tickangle=-45)
-            st.plotly_chart(fig_aov, use_container_width=True)
+            with col_aov:
+                st.markdown("### 💰 Avg Order Value")
+                categories_df['aov_numeric'] = pd.to_numeric(categories_df['avg_order_value'], errors='coerce')
+                fig_aov = px.bar(categories_df.sort_values('aov_numeric', ascending=False), 
+                                x='category_name', y='aov_numeric',
+                                title='AOV by Category',
+                                labels={'aov_numeric': 'Avg Order Value (USD)', 'category_name': 'Category'},
+                                color='aov_numeric',
+                                color_continuous_scale='Greens',
+                                height=400)
+                fig_aov.update_xaxes(tickangle=-45)
+                st.plotly_chart(fig_aov, use_container_width=True)
             
             # Data table
             st.markdown("### 📋 Detailed Category Table")
