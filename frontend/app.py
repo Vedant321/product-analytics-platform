@@ -85,9 +85,9 @@ class MetricsRepository:
             daily_active_users,
             total_events,
             total_purchases,
-            total_revenue,
-            avg_order_value,
-            overall_conversion_rate
+            CAST(total_revenue AS DOUBLE) as total_revenue,
+            CAST(avg_order_value AS DOUBLE) as avg_order_value,
+            CAST(overall_conversion_rate AS DOUBLE) as overall_conversion_rate
         FROM {_self.catalog}.{_self.schema}.gold_daily_metrics
         ORDER BY full_date DESC
         LIMIT {days}
@@ -99,12 +99,12 @@ class MetricsRepository:
         """Get top products by revenue"""
         query = f"""
         SELECT 
-            product_name,
-            total_revenue,
+            brand as product_name,
+            CAST(total_revenue AS DOUBLE) as total_revenue,
             total_quantity_sold,
             total_purchases
         FROM {_self.catalog}.{_self.schema}.gold_product_performance
-        WHERE is_current_version = TRUE
+        WHERE brand IS NOT NULL
         ORDER BY total_revenue DESC
         LIMIT {limit}
         """
@@ -115,11 +115,12 @@ class MetricsRepository:
         """Get category performance metrics"""
         query = f"""
         SELECT 
-            category_name,
-            total_revenue,
+            category_l1 as category_name,
+            CAST(total_revenue AS DOUBLE) as total_revenue,
             total_purchases,
-            avg_order_value
+            CAST(avg_revenue_per_purchase AS DOUBLE) as avg_order_value
         FROM {_self.catalog}.{_self.schema}.gold_category_performance
+        WHERE category_l1 IS NOT NULL
         ORDER BY total_revenue DESC
         """
         return _self._execute_query(query)
@@ -129,10 +130,10 @@ class MetricsRepository:
         """Get overall summary KPIs"""
         query = f"""
         SELECT 
-            SUM(total_revenue) as total_revenue,
-            SUM(total_purchases) as total_purchases,
-            AVG(avg_order_value) as avg_order_value,
-            MAX(daily_active_users) as peak_dau
+            CAST(SUM(total_revenue) AS DOUBLE) as total_revenue,
+            CAST(SUM(total_purchases) AS BIGINT) as total_purchases,
+            CAST(AVG(avg_order_value) AS DOUBLE) as avg_order_value,
+            CAST(MAX(daily_active_users) AS BIGINT) as peak_dau
         FROM {_self.catalog}.{_self.schema}.gold_daily_metrics
         """
         df = _self._execute_query(query)
