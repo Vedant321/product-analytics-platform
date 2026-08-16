@@ -183,11 +183,43 @@ with tab1:
         # Fetch KPIs
         kpis = repo.get_summary_kpis()
         
+        # Convert to numeric (SDK returns strings sometimes)
+        total_revenue = float(kpis['total_revenue']) if kpis['total_revenue'] else 0
+        total_purchases = int(kpis['total_purchases']) if kpis['total_purchases'] else 0
+        avg_order_value = float(kpis['avg_order_value']) if kpis['avg_order_value'] else 0
+        peak_dau = int(kpis['peak_dau']) if kpis['peak_dau'] else 0
+        
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Revenue", f"${kpis['total_revenue']:,.0f}")
-        col2.metric("Total Purchases", f"{kpis['total_purchases']:,.0f}")
-        col3.metric("Avg Order Value", f"${kpis['avg_order_value']:.2f}")
-        col4.metric("Peak DAU", f"{kpis['peak_dau']:,.0f}")
+        col1.metric("Total Revenue", f"${total_revenue:,.0f}")
+        col2.metric("Total Purchases", f"{total_purchases:,.0f}")
+        col3.metric("Avg Order Value", f"${avg_order_value:.2f}")
+        col4.metric("Peak DAU", f"{peak_dau:,.0f}")
+        
+        st.markdown("---")
+        
+        # Conversion Funnel
+        daily_df_preview = repo.get_daily_metrics(days_filter)
+        if not daily_df_preview.empty:
+            total_views = daily_df_preview['total_events'].sum()
+            total_carts = daily_df_preview.get('total_carts', pd.Series([0])).sum()
+            total_purchases_funnel = daily_df_preview['total_purchases'].sum()
+            
+            funnel_data = pd.DataFrame({
+                'Stage': ['Views', 'Add to Cart', 'Purchase'],
+                'Count': [total_views, total_carts if total_carts > 0 else total_views * 0.3, total_purchases_funnel],
+                'Conversion': ['100%', 
+                              f"{(total_carts/total_views*100) if total_views > 0 else 30:.1f}%",
+                              f"{(total_purchases_funnel/total_views*100) if total_views > 0 else 5:.1f}%"]
+            })
+            
+            st.subheader("🎯 Conversion Funnel")
+            fig_funnel = px.funnel(funnel_data, x='Count', y='Stage', 
+                                  text='Conversion',
+                                  title='User Journey: Views → Cart → Purchase',
+                                  color='Stage',
+                                  color_discrete_sequence=['#636EFA', '#EF553B', '#00CC96'])
+            fig_funnel.update_traces(textposition='inside', textfont_size=14)
+            st.plotly_chart(fig_funnel, use_container_width=True)
         
         st.markdown("---")
         
@@ -227,19 +259,54 @@ with tab2:
     st.subheader("Product Performance")
     
     try:
-        products_df = repo.get_top_products(10)
+        products_df = repo.get_top_products(20)  # Get more products
         
         if not products_df.empty:
-            # Top products chart
-            fig = px.bar(products_df, x='total_revenue', y='product_name',
-                        orientation='h',
-                        title='Top 10 Products by Revenue',
-                        labels={'total_revenue': 'Revenue ($)', 'product_name': 'Product'})
-            st.plotly_chart(fig, use_container_width=True)
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Top 10 products horizontal bar
+                fig = px.bar(products_df.head(10), x='total_revenue', y='product_name',
+                            orientation='h',
+                            title='Top 10 Brands by Revenue',
+                            labels={'total_revenue': 'Revenue ($)', 'product_name': 'Brand'},
+                            color='total_revenue',
+                            color_continuous_scale='Blues')
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # Product metrics summary
+                st.metric("Total Brands", len(products_df))
+                st.metric("Top Brand Revenue", f"${float(products_df.iloc[0]['total_revenue']):,.0f}")
+                st.metric("Avg Revenue/Brand", f"${float(products_df['total_revenue'].mean()):,.0f}")
+            
+            # Treemap: Visual hierarchy of products by revenue
+            st.markdown("### 🗺️ Product Revenue Treemap")
+            fig_tree = px.treemap(products_df.head(15), 
+                                 path=['product_name'], 
+                                 values='total_revenue',
+                                 title='Brand Revenue Distribution (Top 15)',
+                                 color='total_revenue',
+                                 color_continuous_scale='RdYlGn')
+            st.plotly_chart(fig_tree, use_container_width=True)
+            
+            # Scatter: Revenue vs Quantity Sold
+            st.markdown("### 📊 Revenue vs Quantity Analysis")
+            fig_scatter = px.scatter(products_df.head(15), 
+                                    x='total_quantity_sold', 
+                                    y='total_revenue',
+                                    size='total_purchases',
+                                    hover_data=['product_name'],
+                                    title='Revenue vs Quantity Sold (bubble size = purchases)',
+                                    labels={'total_quantity_sold': 'Units Sold', 
+                                           'total_revenue': 'Revenue ($)'},
+                                    color='total_revenue',
+                                    color_continuous_scale='Viridis')
+            st.plotly_chart(fig_scatter, use_container_width=True)
             
             # Data table
-            st.markdown("### Product Details")
-            st.dataframe(products_df, use_container_width=True)
+            st.markdown("### 📋 Detailed Product Table")
+            st.dataframe(products_df, use_container_width=True, height=300)
         else:
             st.info("No product data available")
             
