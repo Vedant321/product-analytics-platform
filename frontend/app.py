@@ -45,7 +45,7 @@ class MetricsRepository:
         self.workspace = workspace_client
         self.catalog = "product_analytics"
         self.schema = "ecommerce"
-        self.warehouse_id = None  # Will use default serverless
+        self.warehouse_id = "b1660d805834aacd"  # Serverless Starter Warehouse
     
     def _execute_query(self, query):
         """Execute query using Databricks SDK and return pandas DataFrame"""
