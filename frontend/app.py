@@ -66,10 +66,20 @@ class MetricsRepository:
             if result.status.state != StatementState.SUCCEEDED:
                 raise Exception(f"Query failed: {result.status.error}")
             
-            # Convert result to DataFrame
+            # Convert result to DataFrame with proper types
             if result.result and result.result.data_array:
                 columns = [col.name for col in result.manifest.schema.columns]
-                return pd.DataFrame(result.result.data_array, columns=columns)
+                df = pd.DataFrame(result.result.data_array, columns=columns)
+                
+                # Convert numeric columns properly
+                for col in df.columns:
+                    try:
+                        # Try to convert to numeric, keep original if fails
+                        df[col] = pd.to_numeric(df[col], errors='ignore')
+                    except:
+                        pass
+                
+                return df
             return pd.DataFrame()
             
         except Exception as e:
@@ -190,25 +200,30 @@ with tab1:
         peak_dau = int(kpis['peak_dau']) if kpis['peak_dau'] else 0
         
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Revenue", f"${total_revenue:,.0f}")
-        col2.metric("Total Purchases", f"{total_purchases:,.0f}")
-        col3.metric("Avg Order Value", f"${avg_order_value:.2f}")
-        col4.metric("Peak DAU", f"{peak_dau:,.0f}")
+        col1.metric("Total Revenue", f"${total_revenue:,.0f}", help="Total revenue in USD")
+        col2.metric("Total Purchases", f"{total_purchases:,.0f} orders", help="Total number of purchase transactions")
+        col3.metric("Avg Order Value", f"${avg_order_value:.2f}", help="Average value per order in USD")
+        col4.metric("Peak DAU", f"{peak_dau:,.0f} users", help="Peak Daily Active Users")
         
         st.markdown("---")
         
         # Conversion Funnel
         daily_df_preview = repo.get_daily_metrics(days_filter)
         if not daily_df_preview.empty:
-            total_views = daily_df_preview['total_events'].sum()
-            total_carts = daily_df_preview.get('total_carts', pd.Series([0])).sum()
-            total_purchases_funnel = daily_df_preview['total_purchases'].sum()
+            # Convert to native Python numbers to avoid type issues
+            total_views = float(daily_df_preview['total_events'].sum())
+            total_carts_col = daily_df_preview.get('total_carts', pd.Series([0]))
+            total_carts = float(total_carts_col.sum()) if len(total_carts_col) > 0 else 0.0
+            total_purchases_funnel = float(daily_df_preview['total_purchases'].sum())
+            
+            # Use actual cart data if available, else estimate
+            cart_count = total_carts if total_carts > 0 else total_views * 0.3
             
             funnel_data = pd.DataFrame({
                 'Stage': ['Views', 'Add to Cart', 'Purchase'],
-                'Count': [total_views, total_carts if total_carts > 0 else total_views * 0.3, total_purchases_funnel],
+                'Count': [int(total_views), int(cart_count), int(total_purchases_funnel)],
                 'Conversion': ['100%', 
-                              f"{(total_carts/total_views*100) if total_views > 0 else 30:.1f}%",
+                              f"{(cart_count/total_views*100) if total_views > 0 else 30:.1f}%",
                               f"{(total_purchases_funnel/total_views*100) if total_views > 0 else 5:.1f}%"]
             })
             
@@ -276,9 +291,22 @@ with tab2:
             
             with col2:
                 # Product metrics summary
-                st.metric("Total Brands", len(products_df))
-                st.metric("Top Brand Revenue", f"${float(products_df.iloc[0]['total_revenue']):,.0f}")
-                st.metric("Avg Revenue/Brand", f"${float(products_df['total_revenue'].mean()):,.0f}")
+                st.metric("Total Brands", f"{len(products_df)} brands", help="Number of brands in dataset")
+                
+                # Safely convert revenue to numeric
+                try:
+                    top_brand_rev = pd.to_numeric(products_df.iloc[0]['total_revenue'], errors='coerce')
+                    st.metric("Top Brand Revenue", f"${top_brand_rev:,.0f}", help="Revenue of #1 brand in USD")
+                except:
+                    st.metric("Top Brand Revenue", "Data error")
+                
+                try:
+                    # Convert entire column to numeric, then calculate mean
+                    revenue_numeric = pd.to_numeric(products_df['total_revenue'], errors='coerce')
+                    avg_rev = revenue_numeric.mean()
+                    st.metric("Avg Revenue/Brand", f"${avg_rev:,.0f}", help="Average revenue per brand in USD")
+                except:
+                    st.metric("Avg Revenue/Brand", "Data error")
             
             # Treemap: Visual hierarchy of products by revenue
             st.markdown("### 🗺️ Product Revenue Treemap")
@@ -322,22 +350,68 @@ with tab3:
         categories_df = repo.get_category_performance()
         
         if not categories_df.empty:
+            # Top row: Key metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Categories", len(categories_df))
+            with col2:
+                st.metric("Top Category", categories_df.iloc[0]['category_name'])
+            with col3:
+                top_cat_revenue = float(categories_df.iloc[0]['total_revenue'])
+                st.metric("Top Cat Revenue", f"${top_cat_revenue:,.0f}")
+            
+            st.markdown("---")
+            
+            # Row 1: Pie + Sunburst
             col1, col2 = st.columns(2)
             
             with col1:
+                # Donut chart for better readability
                 fig = px.pie(categories_df, values='total_revenue', names='category_name',
-                           title='Revenue by Category')
+                           title='🍰 Revenue Distribution by Category',
+                           hole=0.4)  # Makes it a donut chart
+                fig.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig, use_container_width=True)
             
             with col2:
+                # Bar chart with colors
                 fig = px.bar(categories_df, x='category_name', y='total_purchases',
-                           title='Purchases by Category',
-                           labels={'total_purchases': 'Purchases', 'category_name': 'Category'})
+                           title='🛍️ Purchases by Category',
+                           labels={'total_purchases': 'Purchases', 'category_name': 'Category'},
+                           color='total_purchases',
+                           color_continuous_scale='Oranges')
+                fig.update_xaxis(tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True)
             
+            # Row 2: Performance comparison
+            st.markdown("### 📈 Category Performance Comparison")
+            
+            # Multi-metric bar chart
+            fig_multi = px.bar(categories_df, 
+                              x='category_name', 
+                              y=['total_revenue', 'total_purchases'],
+                              title='Revenue vs Purchases by Category',
+                              labels={'value': 'Amount', 'variable': 'Metric', 'category_name': 'Category'},
+                              barmode='group',
+                              color_discrete_map={'total_revenue': '#636EFA', 'total_purchases': '#EF553B'})
+            fig_multi.update_xaxis(tickangle=-45)
+            st.plotly_chart(fig_multi, use_container_width=True)
+            
+            # Avg Order Value by Category
+            st.markdown("### 💰 Average Order Value by Category")
+            categories_df['aov_numeric'] = pd.to_numeric(categories_df['avg_order_value'], errors='coerce')
+            fig_aov = px.bar(categories_df.sort_values('aov_numeric', ascending=False), 
+                            x='category_name', y='aov_numeric',
+                            title='Which categories have the highest AOV?',
+                            labels={'aov_numeric': 'Avg Order Value ($)', 'category_name': 'Category'},
+                            color='aov_numeric',
+                            color_continuous_scale='Greens')
+            fig_aov.update_xaxis(tickangle=-45)
+            st.plotly_chart(fig_aov, use_container_width=True)
+            
             # Data table
-            st.markdown("### Category Details")
-            st.dataframe(categories_df, use_container_width=True)
+            st.markdown("### 📋 Detailed Category Table")
+            st.dataframe(categories_df, use_container_width=True, height=300)
         else:
             st.info("No category data available")
             
