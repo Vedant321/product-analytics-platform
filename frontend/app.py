@@ -380,7 +380,7 @@ with tab3:
                            labels={'total_purchases': 'Number of Purchases', 'category_name': 'Category'},
                            color='total_purchases',
                            color_continuous_scale='Oranges')
-                fig.update_xaxis(tickangle=-45)
+                fig.update_xaxes(tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True)
             
             # Row 2: Performance comparison
@@ -394,7 +394,7 @@ with tab3:
                               labels={'value': 'Amount (USD/Count)', 'variable': 'Metric', 'category_name': 'Category'},
                               barmode='group',
                               color_discrete_map={'total_revenue': '#636EFA', 'total_purchases': '#EF553B'})
-            fig_multi.update_xaxis(tickangle=-45)
+            fig_multi.update_xaxes(tickangle=-45)
             st.plotly_chart(fig_multi, use_container_width=True)
             
             # Avg Order Value by Category
@@ -406,7 +406,7 @@ with tab3:
                             labels={'aov_numeric': 'Avg Order Value (USD)', 'category_name': 'Category'},
                             color='aov_numeric',
                             color_continuous_scale='Greens')
-            fig_aov.update_xaxis(tickangle=-45)
+            fig_aov.update_xaxes(tickangle=-45)
             st.plotly_chart(fig_aov, use_container_width=True)
             
             # Data table
