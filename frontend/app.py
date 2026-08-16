@@ -154,40 +154,43 @@ print("[DEBUG] Initializing MetricsRepository...")
 repo = MetricsRepository(workspace)
 print("[DEBUG] MetricsRepository initialized")
 
-# ============ HEADER ============
-print("[DEBUG] Rendering UI header...")
-st.title("📊 Product Analytics Platform")
-st.markdown("**Real-time analytics powered by Databricks Delta Lake**")
-st.markdown(f"*Data Source: `{repo.catalog}.{repo.schema}` (Gold Layer)*")
-print("[DEBUG] Header rendered successfully")
-
-# ============ SIDEBAR ============
+# ============ SIDEBAR - VERTICAL NAVIGATION ============
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.title("📊 Analytics")
+    
+    # Navigation
+    selected_page = st.radio(
+        "Navigation",
+        ["📈 Overview", "🛍️ Products", "📅 Categories", "🧪 Experimentation"],
+        label_visibility="collapsed"
+    )
+    
+    
+    
+    # Settings
+    st.subheader("⚙️ Settings")
     days_filter = st.slider("Days to Display", 7, 90, 30)
-    st.markdown("---")
-    st.markdown("### Data Refresh")
-    if st.button("🔄 Clear Cache"):
+    
+    # Data Refresh
+    st.markdown("")
+    if st.button("🔄 Clear Cache", use_container_width=True):
         st.cache_data.clear()
         st.success("Cache cleared!")
-    st.markdown("---")
-    st.markdown("### Architecture")
-    st.markdown("""
-    - **Bronze**: Raw events
-    - **Silver**: Star schema
-    - **Gold**: Aggregated metrics
-    """)
+    
+    
+    
+    # Data Source (compact)
+    st.caption(f"📦 Source: {repo.catalog}.{repo.schema}")
 
-# ============ TABS ============
-print("[DEBUG] Creating tabs...")
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Overview", "🛍️ Products", "📅 Categories", "🧪 Experimentation"])
-print("[DEBUG] Tabs created successfully")
+# ============ COMPACT HEADER ============
+print("[DEBUG] Rendering UI header...")
+st.markdown("# Product Analytics Platform")
+print("[DEBUG] Header rendered successfully")
 
-# ============ TAB 1: OVERVIEW ============
-print("[DEBUG] Entering Tab 1...")
-with tab1:
-    print("[DEBUG] Rendering Tab 1 content...")
-    st.subheader("Business KPIs")
+# ============ PAGE: OVERVIEW ============
+if selected_page == "📈 Overview":
+    print("[DEBUG] Rendering Overview page...")
+    # KPIs section
     
     try:
         # Fetch KPIs
@@ -205,7 +208,7 @@ with tab1:
         col3.metric("Avg Order Value", f"${avg_order_value:.2f}", help="Average value per order in USD")
         col4.metric("Peak DAU", f"{peak_dau:,.0f} users", help="Peak Daily Active Users")
         
-        st.markdown("---")
+        
         
         # Conversion Funnel
         daily_df_preview = repo.get_daily_metrics(days_filter)
@@ -236,7 +239,7 @@ with tab1:
             fig_funnel.update_traces(textposition='inside', textfont_size=14)
             st.plotly_chart(fig_funnel, use_container_width=True)
         
-        st.markdown("---")
+        
         
         # Daily trends
         st.subheader(f"Daily Trends (Last {days_filter} Days)")
@@ -269,9 +272,9 @@ with tab1:
         st.error(f"Error loading overview metrics: {str(e)}")
         st.exception(e)
 
-# ============ TAB 2: PRODUCTS ============
-with tab2:
-    st.subheader("Product Performance")
+# ============ PAGE: PRODUCTS ============
+elif selected_page == "🛍️ Products":
+    # Products section
     
     try:
         products_df = repo.get_top_products(20)  # Get more products
@@ -342,9 +345,9 @@ with tab2:
         st.error(f"Error loading product metrics: {str(e)}")
         st.exception(e)
 
-# ============ TAB 3: CATEGORIES ============
-with tab3:
-    st.subheader("Category Performance")
+# ============ PAGE: CATEGORIES ============
+elif selected_page == "📅 Categories":
+    # Categories section
     
     try:
         categories_df = repo.get_category_performance()
@@ -360,7 +363,7 @@ with tab3:
                 top_cat_revenue = float(categories_df.iloc[0]['total_revenue'])
                 st.metric("Top Cat Revenue", f"${top_cat_revenue:,.0f}")
             
-            st.markdown("---")
+            
             
             # Row 1: Pie + Sunburst
             col1, col2 = st.columns(2)
@@ -419,8 +422,8 @@ with tab3:
         st.error(f"Error loading category metrics: {str(e)}")
         st.exception(e)
 
-# ============ TAB 4: EXPERIMENTATION (PLACEHOLDER) ============
-with tab4:
+# ============ PAGE: EXPERIMENTATION ============
+elif selected_page == "🧪 Experimentation":
     st.subheader("🧪 A/B Testing & Experimentation")
     st.info("⚡ Coming Soon: A/B test results, experiment metrics, and ML predictions")
     
@@ -439,5 +442,5 @@ with tab4:
     with st.expander("📊 Statistical Analysis"):
         st.markdown("Significance testing, confidence intervals, and experiment analysis")
 
-st.markdown("---")
+
 st.markdown("🚀 Built with Streamlit + Databricks Delta Lake | 📊 Powered by Gold Layer Analytics")
