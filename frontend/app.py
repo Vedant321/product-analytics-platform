@@ -246,7 +246,7 @@ with tab1:
             # Revenue trend
             fig_revenue = px.line(daily_df, x='full_date', y='total_revenue',
                                  title='Daily Revenue',
-                                 labels={'total_revenue': 'Revenue ($)', 'full_date': 'Date'})
+                                 labels={'total_revenue': 'Revenue (USD)', 'full_date': 'Date'})
             st.plotly_chart(fig_revenue, use_container_width=True)
             
             # DAU and Conversion
@@ -254,13 +254,13 @@ with tab1:
             with col1:
                 fig_dau = px.line(daily_df, x='full_date', y='daily_active_users',
                                 title='Daily Active Users',
-                                labels={'daily_active_users': 'DAU', 'full_date': 'Date'})
+                                labels={'daily_active_users': 'Daily Active Users', 'full_date': 'Date'})
                 st.plotly_chart(fig_dau, use_container_width=True)
             
             with col2:
                 fig_conv = px.line(daily_df, x='full_date', y='overall_conversion_rate',
                                  title='Conversion Rate',
-                                 labels={'overall_conversion_rate': 'Conversion %', 'full_date': 'Date'})
+                                 labels={'overall_conversion_rate': 'Conversion Rate (%)', 'full_date': 'Date'})
                 st.plotly_chart(fig_conv, use_container_width=True)
         else:
             st.info("No data available for the selected period")
@@ -284,7 +284,7 @@ with tab2:
                 fig = px.bar(products_df.head(10), x='total_revenue', y='product_name',
                             orientation='h',
                             title='Top 10 Brands by Revenue',
-                            labels={'total_revenue': 'Revenue ($)', 'product_name': 'Brand'},
+                            labels={'total_revenue': 'Revenue (USD)', 'product_name': 'Brand'},
                             color='total_revenue',
                             color_continuous_scale='Blues')
                 st.plotly_chart(fig, use_container_width=True)
@@ -326,8 +326,8 @@ with tab2:
                                     size='total_purchases',
                                     hover_data=['product_name'],
                                     title='Revenue vs Quantity Sold (bubble size = purchases)',
-                                    labels={'total_quantity_sold': 'Units Sold', 
-                                           'total_revenue': 'Revenue ($)'},
+                                    labels={'total_quantity_sold': 'Units Sold (Quantity)', 
+                                           'total_revenue': 'Revenue (USD)'},
                                     color='total_revenue',
                                     color_continuous_scale='Viridis')
             st.plotly_chart(fig_scatter, use_container_width=True)
@@ -377,7 +377,7 @@ with tab3:
                 # Bar chart with colors
                 fig = px.bar(categories_df, x='category_name', y='total_purchases',
                            title='🛍️ Purchases by Category',
-                           labels={'total_purchases': 'Purchases', 'category_name': 'Category'},
+                           labels={'total_purchases': 'Number of Purchases', 'category_name': 'Category'},
                            color='total_purchases',
                            color_continuous_scale='Oranges')
                 fig.update_xaxis(tickangle=-45)
@@ -391,7 +391,7 @@ with tab3:
                               x='category_name', 
                               y=['total_revenue', 'total_purchases'],
                               title='Revenue vs Purchases by Category',
-                              labels={'value': 'Amount', 'variable': 'Metric', 'category_name': 'Category'},
+                              labels={'value': 'Amount (USD/Count)', 'variable': 'Metric', 'category_name': 'Category'},
                               barmode='group',
                               color_discrete_map={'total_revenue': '#636EFA', 'total_purchases': '#EF553B'})
             fig_multi.update_xaxis(tickangle=-45)
@@ -403,7 +403,7 @@ with tab3:
             fig_aov = px.bar(categories_df.sort_values('aov_numeric', ascending=False), 
                             x='category_name', y='aov_numeric',
                             title='Which categories have the highest AOV?',
-                            labels={'aov_numeric': 'Avg Order Value ($)', 'category_name': 'Category'},
+                            labels={'aov_numeric': 'Avg Order Value (USD)', 'category_name': 'Category'},
                             color='aov_numeric',
                             color_continuous_scale='Greens')
             fig_aov.update_xaxis(tickangle=-45)
