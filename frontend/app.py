@@ -30,29 +30,154 @@ st.markdown("""
         max-width: 95% !important;
     }
     
-    /* === BACKGROUND SHAPES (FADED) === */
-    .main::before {
+    /* === BACKGROUND SHAPES & DECORATIVE ELEMENTS (FADED) === */
+    
+    /* Large blue gradient circle - top right */
+    [data-testid="stAppViewContainer"]::before {
         content: '';
         position: fixed;
-        width: 600px;
-        height: 600px;
+        width: 700px;
+        height: 700px;
         background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
-        opacity: 0.03;
-        top: -250px;
-        right: -250px;
+        opacity: 0.04;
+        top: -300px;
+        right: -300px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Green gradient circle - bottom left */
+    [data-testid="stAppViewContainer"]::after {
+        content: '';
+        position: fixed;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, #34a853 0%, transparent 70%);
+        opacity: 0.04;
+        bottom: -200px;
+        left: -200px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Diagonal line accent - top left */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        width: 2px;
+        height: 300px;
+        background: linear-gradient(to bottom, transparent, #1a73e8, transparent);
+        opacity: 0.08;
+        top: 100px;
+        left: 50px;
+        transform: rotate(45deg);
         z-index: 0;
         pointer-events: none;
     }
     
-    .main::after {
+    /* Small yellow circle - middle right */
+    .block-container::before {
+        content: '';
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, #fbbc04 0%, transparent 70%);
+        opacity: 0.05;
+        top: 40%;
+        right: -75px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Geometric rectangle - bottom right */
+    .block-container::after {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: linear-gradient(135deg, #9334e6 0%, transparent 70%);
+        opacity: 0.03;
+        bottom: 100px;
+        right: 50px;
+        z-index: 0;
+        pointer-events: none;
+        transform: rotate(15deg);
+        border-radius: 20px;
+    }
+    
+    /* === ADDITIONAL DECORATIVE ELEMENTS === */
+    
+    /* Dotted pattern - top left corner */
+    [data-testid="stAppViewContainer"] {
+        background-image: 
+            radial-gradient(circle, #1a73e8 1px, transparent 1px),
+            radial-gradient(circle, #34a853 1px, transparent 1px);
+        background-size: 50px 50px, 50px 50px;
+        background-position: 0 0, 25px 25px;
+        background-repeat: repeat;
+        opacity: 0.015;
+    }
+    
+    /* Curved line decoration - left side */
+    [data-testid="stHeader"]::after {
         content: '';
         position: fixed;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, #34a853 0%, transparent 70%);
-        opacity: 0.03;
-        bottom: -150px;
-        left: -150px;
+        width: 150px;
+        height: 300px;
+        border: 2px solid #1a73e8;
+        border-radius: 50%;
+        opacity: 0.06;
+        top: 20%;
+        left: -100px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    
+    /* Small red accent dot - top right area */
+    [data-testid="stHeader"]::before {
+        content: '';
+        position: fixed;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(circle, #ea4335 0%, transparent 70%);
+        opacity: 0.05;
+        top: 150px;
+        right: 200px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Horizontal line accent - middle */
+    .stMarkdown::before {
+        content: '';
+        position: absolute;
+        width: 100px;
+        height: 2px;
+        background: linear-gradient(to right, transparent, #1a73e8, transparent);
+        opacity: 0.1;
+        top: 50%;
+        left: -120px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    
+    /* Grid pattern overlay - very subtle */
+    body::before {
+        content: '';
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            linear-gradient(0deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%),
+            linear-gradient(90deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%);
+        background-size: 100px 100px;
+        opacity: 0.008;
+        top: 0;
+        left: 0;
         z-index: 0;
         pointer-events: none;
     }
@@ -418,6 +543,13 @@ print("[DEBUG] Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
 if selected_page == "Overview":
+    # Page-specific background decoration
+    st.markdown("""
+    <div style="position: fixed; top: 20%; right: 10%; opacity: 0.03; font-size: 250px; color: #1a73e8; z-index: 0; pointer-events: none;">
+        📊
+    </div>
+    """, unsafe_allow_html=True)
+    
     print("[DEBUG] Rendering Overview page...")
     # KPIs section
     
@@ -503,6 +635,13 @@ if selected_page == "Overview":
 
 # ============ PAGE: PRODUCTS ============
 elif selected_page == "Products":
+    # Page-specific background decoration
+    st.markdown("""
+    <div style="position: fixed; bottom: 15%; left: 5%; opacity: 0.025; font-size: 200px; color: #34a853; z-index: 0; pointer-events: none;">
+        🛒
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Products section
     
     try:
@@ -580,6 +719,13 @@ elif selected_page == "Products":
 
 # ============ PAGE: CATEGORIES ============
 elif selected_page == "Categories":
+    # Page-specific background decoration
+    st.markdown("""
+    <div style="position: fixed; top: 30%; right: 8%; opacity: 0.025; font-size: 220px; color: #fbbc04; z-index: 0; pointer-events: none;">
+        📦
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Categories section
     
     try:
