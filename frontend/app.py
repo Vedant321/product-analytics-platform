@@ -39,7 +39,7 @@ st.markdown("""
         width: 700px;
         height: 700px;
         background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
-        opacity: 0.04;
+        opacity: 0.015;
         top: -300px;
         right: -300px;
         z-index: 0;
@@ -54,7 +54,7 @@ st.markdown("""
         width: 500px;
         height: 500px;
         background: radial-gradient(circle, #34a853 0%, transparent 70%);
-        opacity: 0.04;
+        opacity: 0.015;
         bottom: -200px;
         left: -200px;
         z-index: 0;
@@ -69,7 +69,7 @@ st.markdown("""
         width: 2px;
         height: 300px;
         background: linear-gradient(to bottom, transparent, #1a73e8, transparent);
-        opacity: 0.08;
+        opacity: 0.025;
         top: 100px;
         left: 50px;
         transform: rotate(45deg);
@@ -84,7 +84,7 @@ st.markdown("""
         width: 150px;
         height: 150px;
         background: radial-gradient(circle, #fbbc04 0%, transparent 70%);
-        opacity: 0.05;
+        opacity: 0.02;
         top: 40%;
         right: -75px;
         z-index: 0;
@@ -99,7 +99,7 @@ st.markdown("""
         width: 200px;
         height: 200px;
         background: linear-gradient(135deg, #9334e6 0%, transparent 70%);
-        opacity: 0.03;
+        opacity: 0.015;
         bottom: 100px;
         right: 50px;
         z-index: 0;
@@ -118,7 +118,7 @@ st.markdown("""
         background-size: 50px 50px, 50px 50px;
         background-position: 0 0, 25px 25px;
         background-repeat: repeat;
-        opacity: 0.015;
+        opacity: 0.002;
     }
     
     /* Curved line decoration - left side */
@@ -129,7 +129,7 @@ st.markdown("""
         height: 300px;
         border: 2px solid #1a73e8;
         border-radius: 50%;
-        opacity: 0.06;
+        opacity: 0.02;
         top: 20%;
         left: -100px;
         z-index: 0;
@@ -143,7 +143,7 @@ st.markdown("""
         width: 100px;
         height: 100px;
         background: radial-gradient(circle, #ea4335 0%, transparent 70%);
-        opacity: 0.05;
+        opacity: 0.02;
         top: 150px;
         right: 200px;
         z-index: 0;
@@ -152,18 +152,7 @@ st.markdown("""
     }
     
     /* Horizontal line accent - middle */
-    .stMarkdown::before {
-        content: '';
-        position: absolute;
-        width: 100px;
-        height: 2px;
-        background: linear-gradient(to right, transparent, #1a73e8, transparent);
-        opacity: 0.1;
-        top: 50%;
-        left: -120px;
-        z-index: 0;
-        pointer-events: none;
-    }
+    
     
     /* Grid pattern overlay - very subtle */
     body::before {
@@ -175,7 +164,7 @@ st.markdown("""
             linear-gradient(0deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%),
             linear-gradient(90deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%);
         background-size: 100px 100px;
-        opacity: 0.008;
+        opacity: 0.002;
         top: 0;
         left: 0;
         z-index: 0;
@@ -296,15 +285,55 @@ st.markdown("""
         font-size: 0.875rem !important;
     }
     
-    /* === TEXT COLORS === */
-    p, span, div {
+    /* === TEXT COLORS - PROPER CONTRAST === */
+    /* Only target specific elements, not everything */
+    .stMarkdown p, .stMarkdown span {
         color: #202124 !important;
     }
     
-    .stMarkdown {
+    /* Ensure headings are visible */
+    h2, h3, h4, h5, h6 {
         color: #202124 !important;
     }
     
+    /* Default text should be dark */
+    .main .block-container {
+        color: #202124 !important;
+    }
+    
+    
+    
+    /* === ENSURE CONTENT IS VISIBLE ABOVE DECORATIONS === */
+    .main .block-container {
+        position: relative !important;
+        z-index: 1 !important;
+        background-color: #ffffff !important;
+    }
+    
+    /* Make sure all content elements are above decorations */
+    [data-testid="stMetric"],
+    .stPlotlyChart,
+    .stDataFrame,
+    h1, h2, h3, h4, h5, h6,
+    p, span, div.stMarkdown {
+        position: relative !important;
+        z-index: 2 !important;
+    }
+    
+    /* Ensure text is readable */
+    .stMarkdown, .stMarkdown * {
+        color: #202124 !important;
+    }
+    
+    /* Fix any white text on white background */
+    [data-testid="stAppViewContainer"] * {
+        color: #202124;
+    }
+    
+    /* Sidebar text should be dark */
+    [data-testid="stSidebar"] * {
+        color: #202124;
+    }
     /* === SETTINGS SECTION === */
     [data-testid="stSidebar"] hr {
         border-color: #e8eaed !important;
