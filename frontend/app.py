@@ -170,31 +170,113 @@ st.markdown("""
         color: #202124 !important;
     }
     
-    /* === SUBTLE BACKGROUND DECORATIONS (BEHIND EVERYTHING) === */
+    /* === VISIBLE BACKGROUND DECORATIONS (GOOGLE/AMAZON STYLE) === */
+    
+    /* Large blue gradient circle - top right */
     [data-testid="stAppViewContainer"]::before {
+        content: '';
+        position: fixed;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle at center, rgba(26, 115, 232, 0.08) 0%, rgba(26, 115, 232, 0.03) 40%, transparent 70%);
+        top: -250px;
+        right: -250px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Green gradient circle - bottom left */
+    [data-testid="stAppViewContainer"]::after {
         content: '';
         position: fixed;
         width: 500px;
         height: 500px;
-        background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
-        opacity: 0.02;
-        top: -200px;
-        right: -200px;
+        background: radial-gradient(circle at center, rgba(52, 168, 83, 0.08) 0%, rgba(52, 168, 83, 0.03) 40%, transparent 70%);
+        bottom: -200px;
+        left: -200px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Yellow accent circle - middle right */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle at center, rgba(251, 188, 4, 0.06) 0%, transparent 70%);
+        top: 35%;
+        right: -100px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
+    }
+    
+    /* Purple geometric shape - bottom right */
+    .stApp::after {
+        content: '';
+        position: fixed;
+        width: 250px;
+        height: 250px;
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.05) 0%, transparent 70%);
+        bottom: 80px;
+        right: 100px;
+        z-index: 0;
+        pointer-events: none;
+        transform: rotate(15deg);
+        border-radius: 30px;
+    }
+    
+    /* Diagonal line accent - top left */
+    [data-testid="stHeader"]::before {
+        content: '';
+        position: fixed;
+        width: 3px;
+        height: 200px;
+        background: linear-gradient(to bottom, transparent, rgba(26, 115, 232, 0.15), transparent);
+        top: 80px;
+        left: 40px;
+        transform: rotate(45deg);
         z-index: 0;
         pointer-events: none;
     }
     
-    [data-testid="stAppViewContainer"]::after {
+    /* Curved arc decoration - left side */
+    [data-testid="stHeader"]::after {
         content: '';
         position: fixed;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, #34a853 0%, transparent 70%);
-        opacity: 0.02;
-        bottom: -150px;
-        left: -150px;
+        width: 120px;
+        height: 250px;
+        border: 3px solid rgba(52, 168, 83, 0.08);
+        border-radius: 50%;
+        border-right: none;
+        top: 25%;
+        left: -80px;
         z-index: 0;
         pointer-events: none;
+    }
+    
+    /* Dot pattern - very subtle texture */
+    body {
+        background-image: radial-gradient(circle, rgba(26, 115, 232, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        background-position: 0 0;
+    }
+    
+    /* Small red accent dot - top right area */
+    [data-testid="stSidebar"]::after {
+        content: '';
+        position: fixed;
+        width: 80px;
+        height: 80px;
+        background: radial-gradient(circle at center, rgba(234, 67, 53, 0.08) 0%, transparent 70%);
+        top: 120px;
+        right: 220px;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 50%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -380,6 +462,13 @@ print("[DEBUG] Header rendered successfully")
 # ============ PAGE: OVERVIEW ============
 if selected_page == "Overview":
 
+    # Page decoration - Chart icon
+    st.markdown("""
+    <div style="position: fixed; top: 15%; right: 8%; opacity: 0.06; font-size: 180px; z-index: 0; pointer-events: none; color: #1a73e8;">
+        📊
+    </div>
+    """, unsafe_allow_html=True)
+
     print("[DEBUG] Rendering Overview page...")
     # KPIs section
     
@@ -466,6 +555,13 @@ if selected_page == "Overview":
 # ============ PAGE: PRODUCTS ============
 elif selected_page == "Products":
 
+    # Page decoration - Shopping icon
+    st.markdown("""
+    <div style="position: fixed; bottom: 12%; left: 4%; opacity: 0.05; font-size: 160px; z-index: 0; pointer-events: none; color: #34a853;">
+        🛒
+    </div>
+    """, unsafe_allow_html=True)
+
     # Products section
     
     try:
@@ -543,6 +639,13 @@ elif selected_page == "Products":
 
 # ============ PAGE: CATEGORIES ============
 elif selected_page == "Categories":
+
+    # Page decoration - Package icon
+    st.markdown("""
+    <div style="position: fixed; top: 25%; right: 6%; opacity: 0.05; font-size: 170px; z-index: 0; pointer-events: none; color: #fbbc04;">
+        📦
+    </div>
+    """, unsafe_allow_html=True)
 
     # Categories section
     
