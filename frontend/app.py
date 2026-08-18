@@ -12,72 +12,107 @@ st.set_page_config(
     layout="wide"
 )
 
-# ============ CUSTOM CSS - REDUCE GAPS & STYLE NAVIGATION ============
+# ============ CUSTOM CSS - GOOGLE LIGHT THEME ============
 st.markdown("""
 <style>
-    /* Ensure title is visible */
+    /* === MAIN LAYOUT === */
+    .stApp {
+        background-color: #ffffff;
+    }
+    
     .block-container {
         padding-top: 1.5rem !important;
-        padding-bottom: 0rem !important;
-        overflow: visible !important;
+        padding-bottom: 1rem !important;
+        max-width: 95% !important;
     }
     
-    /* Main content area */
-    .main .block-container {
-        padding-top: 1.5rem !important;
+    /* === BACKGROUND SHAPES (FADED) === */
+    .main::before {
+        content: '';
+        position: fixed;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
+        opacity: 0.03;
+        top: -250px;
+        right: -250px;
+        z-index: 0;
+        pointer-events: none;
     }
     
-    /* Fix title overflow - ensure fully visible */
+    .main::after {
+        content: '';
+        position: fixed;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, #34a853 0%, transparent 70%);
+        opacity: 0.03;
+        bottom: -150px;
+        left: -150px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    
+    /* === TITLE === */
     h1 {
         margin-top: 0.5rem !important;
-        margin-bottom: 0.8rem !important;
+        margin-bottom: 1rem !important;
         padding-top: 0.5rem !important;
-        font-size: 1.7rem !important;
-        white-space: normal !important;
-        overflow-wrap: break-word !important;
-        line-height: 1.3 !important;
-        overflow: visible !important;
+        font-size: 2rem !important;
+        font-weight: 400 !important;
+        color: #202124 !important;
+        letter-spacing: -0.5px !important;
+    }
+    
+    h2, h3 {
+        color: #202124 !important;
+        font-weight: 500 !important;
+    }
+    
+    /* === SIDEBAR STYLING === */
+    [data-testid="stSidebar"] {
+        background-color: #f8f9fa !important;
+        border-right: 1px solid #e8eaed !important;
+    }
+    
+    [data-testid="stSidebar"] > div:first-child {
+        background-color: #f8f9fa !important;
     }
     
     /* Sidebar title */
-    .css-1d391kg h3, [data-testid="stSidebarNav"] + div h3 {
+    [data-testid="stSidebar"] h3 {
+        color: #202124 !important;
         font-size: 1.3rem !important;
-        margin-bottom: 1rem !important;
+        font-weight: 400 !important;
+        padding: 0 0 1rem 0 !important;
+        margin: 0 !important;
     }
     
-    /* Tighter spacing for metrics */
-    [data-testid="stMetricValue"] {
-        font-size: 1.8rem;
-    }
-    
-    /* Reduce chart margins */
-    .plotly {
-        margin-bottom: 0.5rem;
-    }
-    
-    /* Navigation button styling - like Databloo/professional dashboards */
+    /* === NAVIGATION BUTTONS - FULL WIDTH (GOOGLE STYLE) === */
     div[role="radiogroup"] {
-        gap: 0.5rem;
-        display: flex;
-        flex-direction: column;
+        gap: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
     div[role="radiogroup"] label {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-        border: 1px solid #334155 !important;
-        border-radius: 10px !important;
-        padding: 14px 18px !important;
+        background-color: transparent !important;
+        border: none !important;
+        border-left: 3px solid transparent !important;
+        border-radius: 0 !important;
+        padding: 12px 24px !important;
         cursor: pointer !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-        margin: 0 0 8px 0 !important;
+        transition: all 0.2s ease !important;
+        margin: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     
     div[role="radiogroup"] label:hover {
-        background: linear-gradient(135deg, #334155 0%, #1e293b 100%) !important;
-        border-color: #64748b !important;
-        transform: translateX(4px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+        background-color: #e8f0fe !important;
+        border-left-color: #1a73e8 !important;
     }
     
     /* Hide radio circle */
@@ -85,28 +120,116 @@ st.markdown("""
         display: none !important;
     }
     
-    /* Label text styling */
+    /* Label text */
     div[role="radiogroup"] label p {
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
         font-weight: 500 !important;
         margin: 0 !important;
-        color: #e2e8f0 !important;
-        letter-spacing: 0.3px !important;
+        color: #5f6368 !important;
+        letter-spacing: 0.25px !important;
     }
     
-    /* Selected/Active state */
+    /* Active/Selected state - GOOGLE BLUE */
     div[role="radiogroup"] label[data-checked="true"],
     div[role="radiogroup"] label:has(input:checked) {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-        border-color: #60a5fa !important;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
-        transform: translateX(4px);
+        background-color: #e8f0fe !important;
+        border-left: 3px solid #1a73e8 !important;
     }
     
     div[role="radiogroup"] label[data-checked="true"] p,
     div[role="radiogroup"] label:has(input:checked) p {
-        color: #ffffff !important;
+        color: #1a73e8 !important;
         font-weight: 600 !important;
+    }
+    
+    /* === METRICS/KPI CARDS === */
+    [data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border: 1px solid #e8eaed !important;
+        border-radius: 8px !important;
+        padding: 16px !important;
+        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1) !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #5f6368 !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #202124 !important;
+        font-size: 1.75rem !important;
+        font-weight: 400 !important;
+    }
+    
+    [data-testid="stMetricDelta"] {
+        font-size: 0.875rem !important;
+    }
+    
+    /* === TEXT COLORS === */
+    p, span, div {
+        color: #202124 !important;
+    }
+    
+    .stMarkdown {
+        color: #202124 !important;
+    }
+    
+    /* === SETTINGS SECTION === */
+    [data-testid="stSidebar"] hr {
+        border-color: #e8eaed !important;
+        margin: 1.5rem 0 !important;
+    }
+    
+    /* Slider styling */
+    .stSlider > div > div > div {
+        background-color: #1a73e8 !important;
+    }
+    
+    /* === BUTTONS === */
+    .stButton > button {
+        background-color: #1a73e8 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 4px !important;
+        padding: 8px 24px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3) !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #1765cc !important;
+        box-shadow: 0 1px 3px 1px rgba(60,64,67,0.3) !important;
+    }
+    
+    /* === CHARTS === */
+    .plotly {
+        border-radius: 8px !important;
+        border: 1px solid #e8eaed !important;
+        padding: 12px !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1) !important;
+    }
+    
+    /* === TABLES === */
+    .dataframe {
+        border: 1px solid #e8eaed !important;
+        border-radius: 8px !important;
+        font-size: 0.875rem !important;
+    }
+    
+    .dataframe th {
+        background-color: #f8f9fa !important;
+        color: #202124 !important;
+        font-weight: 500 !important;
+        border-bottom: 2px solid #e8eaed !important;
+    }
+    
+    .dataframe td {
+        color: #202124 !important;
+        border-bottom: 1px solid #e8eaed !important;
     }
 </style>
 """, unsafe_allow_html=True)
