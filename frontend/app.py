@@ -5,6 +5,10 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementState
 import time
 
+
+# Google-inspired color palette for charts
+color_palette = ["#1a73e8", "#34a853", "#fbbc04", "#ea4335", "#9334e6", "#00acc1"]
+
 # ============ MUST BE FIRST! ============
 st.set_page_config(
     page_title="Analytics Platform",
