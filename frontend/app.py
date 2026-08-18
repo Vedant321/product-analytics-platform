@@ -16,178 +16,41 @@ st.set_page_config(
     layout="wide"
 )
 
-# ============ CUSTOM CSS - GOOGLE LIGHT THEME ============
+# ============ CUSTOM CSS - GOOGLE LIGHT THEME (SIMPLIFIED) ============
 st.markdown("""
 <style>
-    /* === MAIN LAYOUT === */
+    /* === MAIN COLORS === */
     .stApp {
-        background-color: #ffffff;
+        background-color: #ffffff !important;
+    }
+    
+    /* Force all text to be dark */
+    * {
+        color: #202124 !important;
     }
     
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
         max-width: 95% !important;
-    }
-    
-    /* === BACKGROUND SHAPES & DECORATIVE ELEMENTS (FADED) === */
-    
-    /* Large blue gradient circle - top right */
-    [data-testid="stAppViewContainer"]::before {
-        content: '';
-        position: fixed;
-        width: 700px;
-        height: 700px;
-        background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
-        opacity: 0.015;
-        top: -300px;
-        right: -300px;
-        z-index: 0;
-        pointer-events: none;
-        border-radius: 50%;
-    }
-    
-    /* Green gradient circle - bottom left */
-    [data-testid="stAppViewContainer"]::after {
-        content: '';
-        position: fixed;
-        width: 500px;
-        height: 500px;
-        background: radial-gradient(circle, #34a853 0%, transparent 70%);
-        opacity: 0.015;
-        bottom: -200px;
-        left: -200px;
-        z-index: 0;
-        pointer-events: none;
-        border-radius: 50%;
-    }
-    
-    /* Diagonal line accent - top left */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        width: 2px;
-        height: 300px;
-        background: linear-gradient(to bottom, transparent, #1a73e8, transparent);
-        opacity: 0.025;
-        top: 100px;
-        left: 50px;
-        transform: rotate(45deg);
-        z-index: 0;
-        pointer-events: none;
-    }
-    
-    /* Small yellow circle - middle right */
-    .block-container::before {
-        content: '';
-        position: absolute;
-        width: 150px;
-        height: 150px;
-        background: radial-gradient(circle, #fbbc04 0%, transparent 70%);
-        opacity: 0.02;
-        top: 40%;
-        right: -75px;
-        z-index: 0;
-        pointer-events: none;
-        border-radius: 50%;
-    }
-    
-    /* Geometric rectangle - bottom right */
-    .block-container::after {
-        content: '';
-        position: absolute;
-        width: 200px;
-        height: 200px;
-        background: linear-gradient(135deg, #9334e6 0%, transparent 70%);
-        opacity: 0.015;
-        bottom: 100px;
-        right: 50px;
-        z-index: 0;
-        pointer-events: none;
-        transform: rotate(15deg);
-        border-radius: 20px;
-    }
-    
-    /* === ADDITIONAL DECORATIVE ELEMENTS === */
-    
-    /* Dotted pattern - top left corner */
-    [data-testid="stAppViewContainer"] {
-        background-image: 
-            radial-gradient(circle, #1a73e8 1px, transparent 1px),
-            radial-gradient(circle, #34a853 1px, transparent 1px);
-        background-size: 50px 50px, 50px 50px;
-        background-position: 0 0, 25px 25px;
-        background-repeat: repeat;
-        opacity: 0.002;
-    }
-    
-    /* Curved line decoration - left side */
-    [data-testid="stHeader"]::after {
-        content: '';
-        position: fixed;
-        width: 150px;
-        height: 300px;
-        border: 2px solid #1a73e8;
-        border-radius: 50%;
-        opacity: 0.02;
-        top: 20%;
-        left: -100px;
-        z-index: 0;
-        pointer-events: none;
-    }
-    
-    /* Small red accent dot - top right area */
-    [data-testid="stHeader"]::before {
-        content: '';
-        position: fixed;
-        width: 100px;
-        height: 100px;
-        background: radial-gradient(circle, #ea4335 0%, transparent 70%);
-        opacity: 0.02;
-        top: 150px;
-        right: 200px;
-        z-index: 0;
-        pointer-events: none;
-        border-radius: 50%;
-    }
-    
-    /* Horizontal line accent - middle */
-    
-    
-    /* Grid pattern overlay - very subtle */
-    body::before {
-        content: '';
-        position: fixed;
-        width: 100%;
-        height: 100%;
-        background-image: 
-            linear-gradient(0deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%),
-            linear-gradient(90deg, transparent 49%, #1a73e8 49%, #1a73e8 51%, transparent 51%);
-        background-size: 100px 100px;
-        opacity: 0.002;
-        top: 0;
-        left: 0;
-        z-index: 0;
-        pointer-events: none;
+        background-color: #ffffff !important;
+        position: relative !important;
+        z-index: 10 !important;
     }
     
     /* === TITLE === */
+    h1, h2, h3, h4, h5, h6 {
+        color: #202124 !important;
+        font-weight: 400 !important;
+    }
+    
     h1 {
+        font-size: 2rem !important;
         margin-top: 0.5rem !important;
         margin-bottom: 1rem !important;
-        padding-top: 0.5rem !important;
-        font-size: 2rem !important;
-        font-weight: 400 !important;
-        color: #202124 !important;
-        letter-spacing: -0.5px !important;
     }
     
-    h2, h3 {
-        color: #202124 !important;
-        font-weight: 500 !important;
-    }
-    
-    /* === SIDEBAR STYLING === */
+    /* === SIDEBAR === */
     [data-testid="stSidebar"] {
         background-color: #f8f9fa !important;
         border-right: 1px solid #e8eaed !important;
@@ -197,22 +60,17 @@ st.markdown("""
         background-color: #f8f9fa !important;
     }
     
-    /* Sidebar title */
     [data-testid="stSidebar"] h3 {
         color: #202124 !important;
         font-size: 1.3rem !important;
-        font-weight: 400 !important;
         padding: 0 0 1rem 0 !important;
-        margin: 0 !important;
     }
     
-    /* === NAVIGATION BUTTONS - FULL WIDTH (GOOGLE STYLE) === */
+    /* === NAVIGATION BUTTONS - FULL WIDTH === */
     div[role="radiogroup"] {
         gap: 0 !important;
         display: flex !important;
         flex-direction: column !important;
-        padding: 0 !important;
-        margin: 0 !important;
     }
     
     div[role="radiogroup"] label {
@@ -225,7 +83,6 @@ st.markdown("""
         transition: all 0.2s ease !important;
         margin: 0 !important;
         width: 100% !important;
-        box-sizing: border-box !important;
     }
     
     div[role="radiogroup"] label:hover {
@@ -233,21 +90,17 @@ st.markdown("""
         border-left-color: #1a73e8 !important;
     }
     
-    /* Hide radio circle */
     div[role="radiogroup"] label > div:first-child {
         display: none !important;
     }
     
-    /* Label text */
     div[role="radiogroup"] label p {
         font-size: 0.95rem !important;
         font-weight: 500 !important;
         margin: 0 !important;
         color: #5f6368 !important;
-        letter-spacing: 0.25px !important;
     }
     
-    /* Active/Selected state - GOOGLE BLUE */
     div[role="radiogroup"] label[data-checked="true"],
     div[role="radiogroup"] label:has(input:checked) {
         background-color: #e8f0fe !important;
@@ -260,7 +113,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
     
-    /* === METRICS/KPI CARDS === */
+    /* === METRICS === */
     [data-testid="stMetric"] {
         background-color: #ffffff !important;
         border: 1px solid #e8eaed !important;
@@ -272,7 +125,6 @@ st.markdown("""
     [data-testid="stMetricLabel"] {
         color: #5f6368 !important;
         font-size: 0.875rem !important;
-        font-weight: 500 !important;
     }
     
     [data-testid="stMetricValue"] {
@@ -281,68 +133,12 @@ st.markdown("""
         font-weight: 400 !important;
     }
     
-    [data-testid="stMetricDelta"] {
-        font-size: 0.875rem !important;
-    }
-    
-    /* === TEXT COLORS - PROPER CONTRAST === */
-    /* Only target specific elements, not everything */
-    .stMarkdown p, .stMarkdown span {
-        color: #202124 !important;
-    }
-    
-    /* Ensure headings are visible */
-    h2, h3, h4, h5, h6 {
-        color: #202124 !important;
-    }
-    
-    /* Default text should be dark */
-    .main .block-container {
-        color: #202124 !important;
-    }
-    
-    
-    
-    /* === ENSURE CONTENT IS VISIBLE ABOVE DECORATIONS === */
-    .main .block-container {
-        position: relative !important;
-        z-index: 1 !important;
+    /* === CHARTS === */
+    .plotly {
+        border-radius: 8px !important;
+        border: 1px solid #e8eaed !important;
         background-color: #ffffff !important;
-    }
-    
-    /* Make sure all content elements are above decorations */
-    [data-testid="stMetric"],
-    .stPlotlyChart,
-    .stDataFrame,
-    h1, h2, h3, h4, h5, h6,
-    p, span, div.stMarkdown {
-        position: relative !important;
-        z-index: 2 !important;
-    }
-    
-    /* Ensure text is readable */
-    .stMarkdown, .stMarkdown * {
-        color: #202124 !important;
-    }
-    
-    /* Fix any white text on white background */
-    [data-testid="stAppViewContainer"] * {
-        color: #202124;
-    }
-    
-    /* Sidebar text should be dark */
-    [data-testid="stSidebar"] * {
-        color: #202124;
-    }
-    /* === SETTINGS SECTION === */
-    [data-testid="stSidebar"] hr {
-        border-color: #e8eaed !important;
-        margin: 1.5rem 0 !important;
-    }
-    
-    /* Slider styling */
-    .stSlider > div > div > div {
-        background-color: #1a73e8 !important;
+        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1) !important;
     }
     
     /* === BUTTONS === */
@@ -351,43 +147,54 @@ st.markdown("""
         color: #ffffff !important;
         border: none !important;
         border-radius: 4px !important;
-        padding: 8px 24px !important;
         font-weight: 500 !important;
-        transition: all 0.2s ease !important;
         box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3) !important;
     }
     
     .stButton > button:hover {
         background-color: #1765cc !important;
-        box-shadow: 0 1px 3px 1px rgba(60,64,67,0.3) !important;
-    }
-    
-    /* === CHARTS === */
-    .plotly {
-        border-radius: 8px !important;
-        border: 1px solid #e8eaed !important;
-        padding: 12px !important;
-        background-color: #ffffff !important;
-        box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1) !important;
     }
     
     /* === TABLES === */
     .dataframe {
         border: 1px solid #e8eaed !important;
         border-radius: 8px !important;
-        font-size: 0.875rem !important;
     }
     
     .dataframe th {
         background-color: #f8f9fa !important;
         color: #202124 !important;
-        font-weight: 500 !important;
-        border-bottom: 2px solid #e8eaed !important;
     }
     
     .dataframe td {
         color: #202124 !important;
-        border-bottom: 1px solid #e8eaed !important;
+    }
+    
+    /* === SUBTLE BACKGROUND DECORATIONS (BEHIND EVERYTHING) === */
+    [data-testid="stAppViewContainer"]::before {
+        content: '';
+        position: fixed;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, #1a73e8 0%, transparent 70%);
+        opacity: 0.02;
+        top: -200px;
+        right: -200px;
+        z-index: 0;
+        pointer-events: none;
+    }
+    
+    [data-testid="stAppViewContainer"]::after {
+        content: '';
+        position: fixed;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, #34a853 0%, transparent 70%);
+        opacity: 0.02;
+        bottom: -150px;
+        left: -150px;
+        z-index: 0;
+        pointer-events: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -572,8 +379,6 @@ print("[DEBUG] Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
 if selected_page == "Overview":
-    # Page-specific background decoration
-    st.markdown("""
     <div style="position: fixed; top: 20%; right: 10%; opacity: 0.03; font-size: 250px; color: #1a73e8; z-index: 0; pointer-events: none;">
         📊
     </div>
@@ -664,8 +469,6 @@ if selected_page == "Overview":
 
 # ============ PAGE: PRODUCTS ============
 elif selected_page == "Products":
-    # Page-specific background decoration
-    st.markdown("""
     <div style="position: fixed; bottom: 15%; left: 5%; opacity: 0.025; font-size: 200px; color: #34a853; z-index: 0; pointer-events: none;">
         🛒
     </div>
@@ -748,8 +551,6 @@ elif selected_page == "Products":
 
 # ============ PAGE: CATEGORIES ============
 elif selected_page == "Categories":
-    # Page-specific background decoration
-    st.markdown("""
     <div style="position: fixed; top: 30%; right: 8%; opacity: 0.025; font-size: 220px; color: #fbbc04; z-index: 0; pointer-events: none;">
         📦
     </div>
