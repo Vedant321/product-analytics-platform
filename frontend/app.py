@@ -7,7 +7,7 @@ import time
 
 # ============ MUST BE FIRST! ============
 st.set_page_config(
-    page_title="Product Analytics Platform",
+    page_title="Analytics Platform",
     page_icon="📊",
     layout="wide"
 )
@@ -15,21 +15,28 @@ st.set_page_config(
 # ============ CUSTOM CSS - REDUCE GAPS & STYLE NAVIGATION ============
 st.markdown("""
 <style>
-    /* Reduce top padding */
+    /* Ensure title is visible */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 0rem !important;
+        overflow: visible !important;
     }
     
-    /* Fix title overflow - allow wrapping */
+    /* Main content area */
+    .main .block-container {
+        padding-top: 1.5rem !important;
+    }
+    
+    /* Fix title overflow - ensure fully visible */
     h1 {
-        margin-top: 0rem !important;
-        margin-bottom: 0.5rem !important;
-        padding-top: 0rem !important;
-        font-size: 1.8rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.8rem !important;
+        padding-top: 0.5rem !important;
+        font-size: 1.7rem !important;
         white-space: normal !important;
         overflow-wrap: break-word !important;
-        line-height: 1.2 !important;
+        line-height: 1.3 !important;
+        overflow: visible !important;
     }
     
     /* Sidebar title */
@@ -279,7 +286,7 @@ with st.sidebar:
 
 # ============ COMPACT HEADER ============
 print("[DEBUG] Rendering UI header...")
-st.markdown("# Product Analytics Platform")
+st.markdown("# Analytics Platform")
 print("[DEBUG] Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
