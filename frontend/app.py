@@ -12,20 +12,30 @@ st.set_page_config(
     layout="wide"
 )
 
-# ============ CUSTOM CSS - REDUCE GAPS ============
+# ============ CUSTOM CSS - REDUCE GAPS & STYLE NAVIGATION ============
 st.markdown("""
 <style>
-    /* Reduce top padding of main content area */
+    /* Reduce top padding */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 0rem !important;
     }
     
-    /* Reduce spacing around title */
+    /* Fix title overflow - allow wrapping */
     h1 {
         margin-top: 0rem !important;
         margin-bottom: 0.5rem !important;
         padding-top: 0rem !important;
+        font-size: 1.8rem !important;
+        white-space: normal !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* Sidebar title */
+    .css-1d391kg h3, [data-testid="stSidebarNav"] + div h3 {
+        font-size: 1.3rem !important;
+        margin-bottom: 1rem !important;
     }
     
     /* Tighter spacing for metrics */
@@ -37,8 +47,63 @@ st.markdown("""
     .plotly {
         margin-bottom: 0.5rem;
     }
+    
+    /* Navigation button styling - like Databloo/professional dashboards */
+    div[role="radiogroup"] {
+        gap: 0.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    div[role="radiogroup"] label {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
+        padding: 14px 18px !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        margin: 0 0 8px 0 !important;
+    }
+    
+    div[role="radiogroup"] label:hover {
+        background: linear-gradient(135deg, #334155 0%, #1e293b 100%) !important;
+        border-color: #64748b !important;
+        transform: translateX(4px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    }
+    
+    /* Hide radio circle */
+    div[role="radiogroup"] label > div:first-child {
+        display: none !important;
+    }
+    
+    /* Label text styling */
+    div[role="radiogroup"] label p {
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        margin: 0 !important;
+        color: #e2e8f0 !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    /* Selected/Active state */
+    div[role="radiogroup"] label[data-checked="true"],
+    div[role="radiogroup"] label:has(input:checked) {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        border-color: #60a5fa !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+        transform: translateX(4px);
+    }
+    
+    div[role="radiogroup"] label[data-checked="true"] p,
+    div[role="radiogroup"] label:has(input:checked) p {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # ============ DATABRICKS SDK CONNECTION ============
@@ -185,12 +250,13 @@ print("[DEBUG] MetricsRepository initialized")
 
 # ============ SIDEBAR - VERTICAL NAVIGATION ============
 with st.sidebar:
-    st.title("📊 Analytics")
+    st.markdown("### 📊 Analytics")
+    st.markdown("")  # spacing
     
-    # Navigation
+    # Navigation - Clean button-style
     selected_page = st.radio(
         "Navigation",
-        ["📈 Overview", "🛍️ Products", "📅 Categories", "🧪 Experimentation"],
+        ["Overview", "Products", "Categories", "Experimentation"],
         label_visibility="collapsed"
     )
     
@@ -217,7 +283,7 @@ st.markdown("# Product Analytics Platform")
 print("[DEBUG] Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
-if selected_page == "📈 Overview":
+if selected_page == "Overview":
     print("[DEBUG] Rendering Overview page...")
     # KPIs section
     
@@ -302,7 +368,7 @@ if selected_page == "📈 Overview":
         st.exception(e)
 
 # ============ PAGE: PRODUCTS ============
-elif selected_page == "🛍️ Products":
+elif selected_page == "Products":
     # Products section
     
     try:
@@ -379,7 +445,7 @@ elif selected_page == "🛍️ Products":
         st.exception(e)
 
 # ============ PAGE: CATEGORIES ============
-elif selected_page == "📅 Categories":
+elif selected_page == "Categories":
     # Categories section
     
     try:
@@ -460,7 +526,7 @@ elif selected_page == "📅 Categories":
         st.exception(e)
 
 # ============ PAGE: EXPERIMENTATION ============
-elif selected_page == "🧪 Experimentation":
+elif selected_page == "Experimentation":
     st.subheader("🧪 A/B Testing & Experimentation")
     st.info("⚡ Coming Soon: A/B test results, experiment metrics, and ML predictions")
     
