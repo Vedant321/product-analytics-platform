@@ -379,11 +379,7 @@ print("[DEBUG] Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
 if selected_page == "Overview":
-    <div style="position: fixed; top: 20%; right: 10%; opacity: 0.03; font-size: 250px; color: #1a73e8; z-index: 0; pointer-events: none;">
-        📊
-    </div>
-    """, unsafe_allow_html=True)
-    
+
     print("[DEBUG] Rendering Overview page...")
     # KPIs section
     
@@ -469,11 +465,7 @@ if selected_page == "Overview":
 
 # ============ PAGE: PRODUCTS ============
 elif selected_page == "Products":
-    <div style="position: fixed; bottom: 15%; left: 5%; opacity: 0.025; font-size: 200px; color: #34a853; z-index: 0; pointer-events: none;">
-        🛒
-    </div>
-    """, unsafe_allow_html=True)
-    
+
     # Products section
     
     try:
@@ -551,11 +543,7 @@ elif selected_page == "Products":
 
 # ============ PAGE: CATEGORIES ============
 elif selected_page == "Categories":
-    <div style="position: fixed; top: 30%; right: 8%; opacity: 0.025; font-size: 220px; color: #fbbc04; z-index: 0; pointer-events: none;">
-        📦
-    </div>
-    """, unsafe_allow_html=True)
-    
+
     # Categories section
     
     try:
