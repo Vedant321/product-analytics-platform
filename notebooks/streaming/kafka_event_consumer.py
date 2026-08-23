@@ -38,6 +38,12 @@
 # COMMAND ----------
 
 # DBTITLE 1,Configuration
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
@@ -47,9 +53,9 @@ BRONZE_TABLE = 'product_analytics.ecommerce.bronze_streaming_events'
 CHECKPOINT_LOCATION = '/tmp/checkpoints/streaming_events'
 TRIGGER_INTERVAL = '10 seconds'
 
-print(f"📥 Input: {INPUT_TABLE}")
-print(f"📤 Output: {BRONZE_TABLE}")
-print(f"💾 Checkpoint: {CHECKPOINT_LOCATION}")
+logger.info("📥 Input: {INPUT_TABLE}")
+logger.info("📤 Output: {BRONZE_TABLE}")
+logger.info("💾 Checkpoint: {CHECKPOINT_LOCATION}")
 
 # COMMAND ----------
 
@@ -64,9 +70,9 @@ input_stream = spark.readStream \
     .format('delta') \
     .table(INPUT_TABLE)
 
-print("✅ Delta stream reader configured")
-print(f"   Reading from: {INPUT_TABLE}")
-print("\nStream Schema:")
+logger.info(" Delta stream reader configured")
+logger.info("   Reading from: {INPUT_TABLE}")
+logger.info("\nStream Schema:")
 input_stream.printSchema()
 
 # COMMAND ----------
@@ -78,7 +84,7 @@ parsed_stream = input_stream \
     .withColumn('processed_time', current_timestamp()) \
     .withColumn('source', lit('streaming_simulation'))
 
-print("✅ Stream enriched with metadata")
+logger.info(" Stream enriched with metadata")
 # format('kafka'): Uses Kafka as source
 # option('subscribe', topic): Which topic to read from
 # option('startingOffsets', 'latest'): Start from newest messages (use 'earliest' for historical)
@@ -92,8 +98,8 @@ raw_stream = spark.readStream \
     .option('maxOffsetsPerTrigger', MAX_OFFSETS_PER_TRIGGER) \
     .load()
 
-print("✅ Kafka stream initialized")
-print("\nKafka Stream Schema:")
+logger.info(" Kafka stream initialized")
+logger.info("\nKafka Stream Schema:")
 raw_stream.printSchema()
 
 # Kafka provides these columns:
@@ -121,8 +127,8 @@ parsed_stream = raw_stream \
     .withColumn('event_time', to_timestamp(col('event_time'))) \
     .withColumn('ingestion_time', current_timestamp())
 
-print("✅ Event parsing configured")
-print("\nParsed Event Schema:")
+logger.info(" Event parsing configured")
+logger.info("\nParsed Event Schema:")
 parsed_stream.printSchema()
 
 # COMMAND ----------
@@ -177,19 +183,19 @@ query = parsed_stream.writeStream \
     .trigger(processingTime=TRIGGER_INTERVAL) \
     .table(BRONZE_TABLE)
 
-print(f"✅ Streaming query started!")
-print(f"📂 Writing to: {BRONZE_TABLE}")
-print(f"💾 Checkpoint: {CHECKPOINT_LOCATION}")
-print(f"⏱️  Trigger interval: {TRIGGER_INTERVAL}")
-print(f"🔄 Max offsets per trigger: {MAX_OFFSETS_PER_TRIGGER}")
-print(f"\n🔍 Query ID: {query.id}")
-print(f"🟢 Status: {query.status}")
+logger.info(" Streaming query started!")
+logger.info("📂 Writing to: {BRONZE_TABLE}")
+logger.info("💾 Checkpoint: {CHECKPOINT_LOCATION}")
+logger.info("⏱  Trigger interval: {TRIGGER_INTERVAL}")
+logger.info(" Max offsets per trigger: {MAX_OFFSETS_PER_TRIGGER}")
+logger.info("\n Query ID: {query.id}")
+logger.info("🟢 Status: {query.status}")
 
 # COMMAND ----------
 
 # DBTITLE 1,Monitor Streaming Query
 # Check streaming query status
-print("\n📊 Streaming Query Metrics:\n")
+logger.info("\n Streaming Query Metrics:\n")
 
 # Wait a bit for first batch
 import time
@@ -198,15 +204,15 @@ time.sleep(15)
 # Get latest progress
 if query.lastProgress:
     progress = query.lastProgress
-    print(f"Batch ID: {progress['batchId']}")
-    print(f"Input rows: {progress['numInputRows']}")
-    print(f"Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
-    print(f"Batch duration: {progress.get('durationMs', {}).get('triggerExecution', 0) / 1000:.2f} seconds")
+    logger.info("Batch ID: {progress['batchId']}")
+    logger.info("Input rows: {progress['numInputRows']}")
+    logger.info("Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
+    logger.info("Batch duration: {progress.get('durationMs', {}).get('triggerExecution', 0) / 1000:.2f} seconds")
 else:
-    print("Waiting for first batch...")
+    logger.info("Waiting for first batch...")
 
-print("\n🔍 To stop the stream: query.stop()")
-print("📊 To view Spark UI: Check 'Structured Streaming' tab")
+logger.info("\n To stop the stream: query.stop()")
+logger.info(" To view Spark UI: Check 'Structured Streaming' tab")
 
 # COMMAND ----------
 

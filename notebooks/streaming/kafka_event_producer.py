@@ -37,6 +37,12 @@
 # COMMAND ----------
 
 # DBTITLE 1,Imports and Configuration
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import time
@@ -73,8 +79,8 @@ spark.sql(f"""
     COMMENT 'Simulated real-time events for streaming pipeline testing'
 """)
 
-print(f"✅ Input table ready: {INPUT_TABLE}")
-print(f"📊 This simulates Kafka topic behavior using Delta")
+logger.info(" Input table ready: {INPUT_TABLE}")
+logger.info(" This simulates Kafka topic behavior using Delta")
 
 # COMMAND ----------
 
@@ -97,10 +103,10 @@ events_df = spark.sql("""
 """)
 
 total_events = events_df.count()
-print(f"📊 Loaded {total_events} historical events for simulation")
-print(f"📦 Will send {EVENTS_PER_BATCH} events per batch")
-print(f"⏱️  {BATCH_INTERVAL_SECONDS} seconds between batches")
-print(f"🎯 Total batches: {TOTAL_BATCHES}")
+logger.info(" Loaded {total_events} historical events for simulation")
+logger.info(" Will send {EVENTS_PER_BATCH} events per batch")
+logger.info("⏱  {BATCH_INTERVAL_SECONDS} seconds between batches")
+logger.info(" Total batches: {TOTAL_BATCHES}")
 events_df.show(5)
 
 # COMMAND ----------
@@ -109,14 +115,14 @@ events_df.show(5)
 # Convert to Pandas for batch processing
 events_pandas = events_df.toPandas()
 
-print(f"✅ Converted {len(events_pandas)} events to Pandas for batching")
+logger.info(" Converted {len(events_pandas)} events to Pandas for batching")
 
 # COMMAND ----------
 
 # DBTITLE 1,Start Real-Time Simulation
-print(f"\n🚀 Starting event simulation...")
-print(f"📤 Sending {EVENTS_PER_BATCH} events per batch")
-print(f"⏱️  {BATCH_INTERVAL_SECONDS} seconds between batches\n")
+logger.info("\n Starting event simulation...")
+logger.info("📤 Sending {EVENTS_PER_BATCH} events per batch")
+logger.info("⏱  {BATCH_INTERVAL_SECONDS} seconds between batches\n")
 
 total_sent = 0
 start_time = time.time()
@@ -128,7 +134,7 @@ for batch_num in range(1, TOTAL_BATCHES + 1):
     batch_events = events_pandas.iloc[start_idx:end_idx].copy()
     
     if len(batch_events) == 0:
-        print("⚠️  No more events to send")
+        logger.info("⚠  No more events to send")
         break
     
     # Add current timestamp (simulates real-time)
@@ -152,21 +158,21 @@ for batch_num in range(1, TOTAL_BATCHES + 1):
     elapsed = time.time() - start_time
     rate = total_sent / elapsed if elapsed > 0 else 0
     
-    print(f"📤 Batch {batch_num}/{TOTAL_BATCHES} | Sent {len(batch_events)} events | Total: {total_sent} | Rate: {rate:.1f} events/sec")
+    logger.info("📤 Batch {batch_num}/{TOTAL_BATCHES} | Sent {len(batch_events)} events | Total: {total_sent} | Rate: {rate:.1f} events/sec")
     
     # Wait before next batch (except last)
     if batch_num < TOTAL_BATCHES:
-        print(f"   ⏳ Waiting {BATCH_INTERVAL_SECONDS} seconds...")
+        logger.info("   ⏳ Waiting {BATCH_INTERVAL_SECONDS} seconds...")
         time.sleep(BATCH_INTERVAL_SECONDS)
 
 elapsed = time.time() - start_time
 
-print(f"\n✅ Simulation Complete!")
-print(f"📊 Summary:")
-print(f"   Total events: {total_sent}")
-print(f"   Duration: {elapsed:.1f} seconds")
-print(f"   Average rate: {total_sent / elapsed:.1f} events/sec")
-print(f"   Batches sent: {batch_num}")
+logger.info("\n Simulation Complete!")
+logger.info(" Summary:")
+logger.info("   Total events: {total_sent}")
+logger.info("   Duration: {elapsed:.1f} seconds")
+logger.info("   Average rate: {total_sent / elapsed:.1f} events/sec")
+logger.info("   Batches sent: {batch_num}")
 
 # COMMAND ----------
 

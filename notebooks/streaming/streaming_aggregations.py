@@ -43,6 +43,12 @@
 # COMMAND ----------
 
 # DBTITLE 1,Imports and Configuration
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
@@ -89,7 +95,7 @@ parsed_stream = raw_stream \
     .select('data.*') \
     .withColumn('event_time', to_timestamp(col('event_time')))
 
-print("✅ Stream initialized")
+logger.info(" Stream initialized")
 
 # COMMAND ----------
 
@@ -123,8 +129,8 @@ tumbling_agg = parsed_stream \
         round(col('avg_price'), 2).alias('avg_price')
     )
 
-print("✅ Tumbling window aggregation defined")
-print("\nSchema:")
+logger.info(" Tumbling window aggregation defined")
+logger.info("\nSchema:")
 tumbling_agg.printSchema()
 
 # COMMAND ----------
@@ -142,8 +148,8 @@ console_query = tumbling_agg.writeStream \
     .trigger(processingTime=TRIGGER_INTERVAL) \
     .start()
 
-print("✅ Console output stream started")
-print(f"🔍 Query ID: {console_query.id}")
+logger.info(" Console output stream started")
+logger.info(" Query ID: {console_query.id}")
 
 # COMMAND ----------
 
@@ -169,7 +175,7 @@ sliding_agg = parsed_stream \
         round(col('avg_revenue_10min'), 2).alias('avg_revenue_10min')
     )
 
-print("✅ Sliding window aggregation defined")
+logger.info(" Sliding window aggregation defined")
 
 # COMMAND ----------
 
@@ -199,7 +205,7 @@ funnel_agg = parsed_stream \
         round((col('purchases') / col('carts')) * 100, 2).alias('cart_to_purchase_rate')
     )
 
-print("✅ Funnel aggregation defined")
+logger.info(" Funnel aggregation defined")
 
 # COMMAND ----------
 
@@ -214,8 +220,8 @@ funnel_query = funnel_agg.writeStream \
     .trigger(processingTime=TRIGGER_INTERVAL) \
     .table('product_analytics.ecommerce.streaming_funnel_metrics')
 
-print("✅ Funnel metrics stream started")
-print(f"🔍 Query ID: {funnel_query.id}")
+logger.info(" Funnel metrics stream started")
+logger.info(" Query ID: {funnel_query.id}")
 
 # COMMAND ----------
 
@@ -224,20 +230,20 @@ print(f"🔍 Query ID: {funnel_query.id}")
 import time
 time.sleep(15)  # Wait for first batch
 
-print("\n📊 Active Streaming Queries:\n")
+logger.info("\n Active Streaming Queries:\n")
 
 for query in spark.streams.active:
-    print(f"Query: {query.name if query.name else query.id}")
-    print(f"Status: {query.status['message']}")
+    logger.info("Query: {query.name if query.name else query.id}")
+    logger.info("Status: {query.status['message']}")
     
     if query.lastProgress:
         progress = query.lastProgress
-        print(f"Batch ID: {progress['batchId']}")
-        print(f"Input rows: {progress['numInputRows']}")
-        print(f"Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
+        logger.info("Batch ID: {progress['batchId']}")
+        logger.info("Input rows: {progress['numInputRows']}")
+        logger.info("Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
     print("-" * 50)
 
-print("\n🔍 To stop all streams: spark.streams.active[i].stop()")
+logger.info("\n To stop all streams: spark.streams.active[i].stop()")
 
 # COMMAND ----------
 

@@ -11,6 +11,12 @@ This module defines all configuration settings for the platform including:
 - Environment settings
 """
 
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 from dataclasses import dataclass
 from typing import Dict
 import os
@@ -143,15 +149,15 @@ class PlatformConfig:
     def display_config(self):
         """Display current configuration"""
         print("=" * 80)
-        print("PRODUCT ANALYTICS PLATFORM - CONFIGURATION")
+        logger.info("PRODUCT ANALYTICS PLATFORM - CONFIGURATION")
         print("=" * 80)
-        print(f"\nEnvironment: {self.environment.environment}")
-        print(f"\nCatalog: {self.catalog.catalog}")
-        print(f"Schema: {self.catalog.schema}")
-        print(f"Volume Path: {self.catalog.volume_path}")
-        print(f"\nBronze Checkpoint: {self.storage.bronze_checkpoint}")
-        print(f"Silver Checkpoint: {self.storage.silver_checkpoint}")
-        print(f"Gold Checkpoint: {self.storage.gold_checkpoint}")
+        logger.info("\nEnvironment: {self.environment.environment}")
+        logger.info("\nCatalog: {self.catalog.catalog}")
+        logger.info("Schema: {self.catalog.schema}")
+        logger.info("Volume Path: {self.catalog.volume_path}")
+        logger.info("\nBronze Checkpoint: {self.storage.bronze_checkpoint}")
+        logger.info("Silver Checkpoint: {self.storage.silver_checkpoint}")
+        logger.info("Gold Checkpoint: {self.storage.gold_checkpoint}")
         print("\n" + "=" * 80)
 
 
@@ -187,33 +193,33 @@ Example: How to use this configuration in other notebooks
 """
 
 # Access configuration values
-print("\n📋 EXAMPLE USAGE:")
+logger.info("\n📋 EXAMPLE USAGE:")
 print("=" * 60)
 
 # Get fully qualified table names
-print("\n1. Get fully qualified table names:")
-print(f"   Bronze Events: {config.get_table('bronze_events')}")
-print(f"   Silver Events: {config.get_table('silver_events')}")
-print(f"   Gold User Metrics: {config.get_table('gold_user_metrics')}")
+logger.info("\n1. Get fully qualified table names:")
+logger.info("   Bronze Events: {config.get_table('bronze_events')}")
+logger.info("   Silver Events: {config.get_table('silver_events')}")
+logger.info("   Gold User Metrics: {config.get_table('gold_user_metrics')}")
 
 # Access volume path
-print(f"\n2. Volume path for raw data:")
-print(f"   {config.catalog.volume_path}")
+logger.info("\n2. Volume path for raw data:")
+logger.info("   {config.catalog.volume_path}")
 
 # Access checkpoint locations
-print(f"\n3. Checkpoint locations:")
-print(f"   Bronze: {config.storage.bronze_checkpoint}")
-print(f"   Silver: {config.storage.silver_checkpoint}")
-print(f"   Gold: {config.storage.gold_checkpoint}")
+logger.info("\n3. Checkpoint locations:")
+logger.info("   Bronze: {config.storage.bronze_checkpoint}")
+logger.info("   Silver: {config.storage.silver_checkpoint}")
+logger.info("   Gold: {config.storage.gold_checkpoint}")
 
 # Streaming settings
-print(f"\n4. Streaming configuration:")
-print(f"   Kafka Topic: {config.streaming.kafka_topic}")
-print(f"   Bronze Trigger: {config.streaming.bronze_trigger_interval}")
-print(f"   Replay Speed: {config.streaming.replay_speed_multiplier}x")
+logger.info("\n4. Streaming configuration:")
+logger.info("   Kafka Topic: {config.streaming.kafka_topic}")
+logger.info("   Bronze Trigger: {config.streaming.bronze_trigger_interval}")
+logger.info("   Replay Speed: {config.streaming.replay_speed_multiplier}x")
 
 print("\n" + "=" * 60)
-print("\n✅ Configuration loaded successfully!")
-print("\n💡 To use in other notebooks:")
-print("   %run ./config/platform_config")
-print("   Then access via: config.get_table('bronze_events')")
+logger.info("\n Configuration loaded successfully!")
+logger.info("\n To use in other notebooks:")
+logger.info("   %run ./config/platform_config")
+logger.info("   Then access via: config.get_table('bronze_events')")

@@ -202,16 +202,22 @@ November 1, 2019 will ALWAYS be a Friday, ALWAYS be in Q4.
 This is a STATIC dimension - build once, use forever.
 """
 
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 from pyspark.sql import functions as F
 from pyspark.sql.types import *
 from datetime import datetime, timedelta
 
 print("="*80)
-print("BUILDING dim_date - CALENDAR DIMENSION (STATIC)")
+logger.info("BUILDING dim_date - CALENDAR DIMENSION (STATIC)")
 print("="*80)
 
 # Determine date range from Bronze data
-print("\n📅 Step 1: Determine date range from Bronze data...")
+logger.info("\n Step 1: Determine date range from Bronze data...")
 bronze_table = config.get_table('bronze_events')
 date_range = spark.table(bronze_table).select(
     F.min("event_date").alias("min_date"),
@@ -220,15 +226,15 @@ date_range = spark.table(bronze_table).select(
 
 min_date = date_range['min_date']
 max_date = date_range['max_date']
-print(f"   Data range: {min_date} to {max_date}")
+logger.info("   Data range: {min_date} to {max_date}")
 
 # Add buffer for future dates (standard practice)
 start_date = datetime.strptime(str(min_date), '%Y-%m-%d')
 end_date = datetime.strptime(str(max_date), '%Y-%m-%d') + timedelta(days=365)
 
-print(f"\n🔧 Step 2: Generate calendar with 1-year buffer...")
-print(f"   Calendar range: {start_date.date()} to {end_date.date()}")
-print(f"   Why buffer? Allows for future-dated analysis without rebuilding")
+logger.info("\n🔧 Step 2: Generate calendar with 1-year buffer...")
+logger.info("   Calendar range: {start_date.date()} to {end_date.date()}")
+logger.info("   Why buffer? Allows for future-dated analysis without rebuilding")
 
 # Generate all dates
 date_list = []
@@ -263,7 +269,7 @@ while current_date <= end_date:
     })
     current_date += timedelta(days=1)
 
-print(f"   ✅ Generated {len(date_list):,} dates")
+logger.info("    Generated {len(date_list):,} dates")
 
 # Create DataFrame with explicit schema (type safety)
 date_schema = StructType([
@@ -286,10 +292,10 @@ date_schema = StructType([
 
 df_date = spark.createDataFrame(date_list, schema=date_schema)
 
-print("\n📊 Step 3: Preview dim_date:")
+logger.info("\n Step 3: Preview dim_date:")
 df_date.orderBy("date_key").show(10)
 
-print("\n💾 Step 4: Write to Delta table...")
+logger.info("\n💾 Step 4: Write to Delta table...")
 date_table = "product_analytics.ecommerce.silver_dim_date"
 
 df_date.write.format("delta") \
@@ -297,12 +303,12 @@ df_date.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(date_table)
 
-print(f"\n✅ dim_date created!")
-print(f"   Table: {date_table}")
-print(f"   Rows: {df_date.count():,}")
-print(f"   Date Range: {min_date} to {end_date.date()}")
-print(f"\n💡 This dimension is STATIC - only needs to be built ONCE!")
-print(f"   Re-run only if you need to extend the date range.")
+logger.info("\n dim_date created!")
+logger.info("   Table: {date_table}")
+logger.info("   Rows: {df_date.count():,}")
+logger.info("   Date Range: {min_date} to {end_date.date()}")
+logger.info("\n This dimension is STATIC - only needs to be built ONCE!")
+logger.info("   Re-run only if you need to extend the date range.")
 
 # COMMAND ----------
 
@@ -354,20 +360,20 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 print("="*80)
-print("BUILDING dim_categories - SIMPLE DIMENSION")
+logger.info("BUILDING dim_categories - SIMPLE DIMENSION")
 print("="*80)
 
-print("\n📂 Step 1: Extract category hierarchy from Bronze...")
+logger.info("\n📂 Step 1: Extract category hierarchy from Bronze...")
 
 bronze_table = config.get_table('bronze_events')
 
 # Read Bronze and extract unique categories
 df_categories_raw = spark.table(bronze_table).select("category_code").distinct()
 
-print(f"   Unique category_code values: {df_categories_raw.count():,}")
+logger.info("   Unique category_code values: {df_categories_raw.count():,}")
 
 # Split category hierarchy into levels
-print("\n🔧 Step 2: Split hierarchy into L1, L2, L3...")
+logger.info("\n🔧 Step 2: Split hierarchy into L1, L2, L3...")
 
 df_categories_split = df_categories_raw \
     .withColumn("category_split", F.split("category_code", "\\.")) \
@@ -391,11 +397,11 @@ df_categories_split = df_categories_raw \
                  .otherwise(0)) \
     .drop("category_split", "category_code")
 
-print("   Sample category hierarchy:")
+logger.info("   Sample category hierarchy:")
 df_categories_split.filter(F.col("category_depth") == 3).show(5, truncate=False)
 
 # Handle nulls (events with no category)
-print("\n🧹 Step 3: Handle null categories...")
+logger.info("\n🧹 Step 3: Handle null categories...")
 
 df_categories_clean = df_categories_split \
     .withColumn("category_l1", 
@@ -406,7 +412,7 @@ df_categories_clean = df_categories_split \
                  .otherwise(F.col("category_full_path")))
 
 # Generate surrogate keys using row_number() - deterministic ordering
-print("\n🔑 Step 4: Generate surrogate keys (category_sk)...")
+logger.info("\n🔑 Step 4: Generate surrogate keys (category_sk)...")
 
 window_spec = Window.orderBy("category_full_path")
 
@@ -423,16 +429,16 @@ df_categories_final = df_categories_clean \
         "created_at"
     )
 
-print(f"   Generated {df_categories_final.count():,} category surrogate keys")
+logger.info("   Generated {df_categories_final.count():,} category surrogate keys")
 
-print("\n📊 Step 5: Preview dim_categories:")
+logger.info("\n Step 5: Preview dim_categories:")
 df_categories_final.orderBy("category_sk").show(10, truncate=False)
 
 # Show category depth distribution
-print("\n📊 Category depth distribution:")
+logger.info("\n Category depth distribution:")
 df_categories_final.groupBy("category_depth").count().orderBy("category_depth").show()
 
-print("\n💾 Step 6: Write to Delta table...")
+logger.info("\n💾 Step 6: Write to Delta table...")
 category_table = "product_analytics.ecommerce.silver_dim_categories"
 
 df_categories_final.write.format("delta") \
@@ -440,11 +446,11 @@ df_categories_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(category_table)
 
-print(f"\n✅ dim_categories created!")
-print(f"   Table: {category_table}")
-print(f"   Rows: {df_categories_final.count():,}")
-print(f"\n💡 This is a SIMPLE dimension - extract unique values, no history tracking")
-print(f"   Rebuild if categories change (rare in production)")
+logger.info("\n dim_categories created!")
+logger.info("   Table: {category_table}")
+logger.info("   Rows: {df_categories_final.count():,}")
+logger.info("\n This is a SIMPLE dimension - extract unique values, no history tracking")
+logger.info("   Rebuild if categories change (rare in production)")
 
 # COMMAND ----------
 
@@ -580,19 +586,19 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 print("="*80)
-print("BUILDING dim_products - SCD TYPE 2 (SLOWLY CHANGING DIMENSION)")
+logger.info("BUILDING dim_products - SCD TYPE 2 (SLOWLY CHANGING DIMENSION)")
 print("="*80)
-print("\n🎓 This is THE most important pattern in data warehousing!")
-print("   We're tracking HISTORY - every version of every product.\n")
+logger.info("\n🎓 This is THE most important pattern in data warehousing!")
+logger.info("   We're tracking HISTORY - every version of every product.\n")
 
 print("-"*80)
-print("INITIAL LOAD STRATEGY")
+logger.info("INITIAL LOAD STRATEGY")
 print("-"*80)
-print("Today: Take latest snapshot of each product from Bronze")
-print("Future: Detect changes and version them (we'll build that later)\n")
+logger.info("Today: Take latest snapshot of each product from Bronze")
+logger.info("Future: Detect changes and version them (we'll build that later)\n")
 
 # Read Bronze events and extract latest product attributes
-print("📦 Step 1: Extract latest product attributes from Bronze...")
+logger.info(" Step 1: Extract latest product attributes from Bronze...")
 
 bronze_table = config.get_table('bronze_events')
 
@@ -611,9 +617,9 @@ df_products_latest = spark.table(bronze_table) \
     )
 
 product_count = df_products_latest.count()
-print(f"   Found {product_count:,} unique products in Bronze")
+logger.info("   Found {product_count:,} unique products in Bronze")
 
-print("\n🔧 Step 2: Enrich with category surrogate keys...")
+logger.info("\n🔧 Step 2: Enrich with category surrogate keys...")
 
 # Join with dim_categories to get category_sk
 df_categories = spark.table("product_analytics.ecommerce.silver_dim_categories")
@@ -632,10 +638,10 @@ df_products_enriched = df_products_latest \
         F.coalesce(df_categories.category_sk, F.lit(-1)).alias("category_sk")  # -1 = unknown
     )
 
-print("   ✅ Products enriched with category_sk")
+logger.info("    Products enriched with category_sk")
 
 # Clean up brands and handle nulls
-print("\n🧹 Step 3: Clean up product attributes...")
+logger.info("\n🧹 Step 3: Clean up product attributes...")
 
 df_products_clean = df_products_enriched \
     .withColumn("brand_clean",
@@ -650,16 +656,16 @@ df_products_clean = df_products_enriched \
     .withColumnRenamed("brand_clean", "brand") \
     .withColumnRenamed("price_clean", "price")
 
-print("   ✅ Brands normalized, nulls handled, negative prices fixed")
+logger.info("    Brands normalized, nulls handled, negative prices fixed")
 
 # Get the earliest event date for effective_from
-print("\n📅 Step 4: Set effective dates (SCD Type 2 metadata)...")
+logger.info("\n Step 4: Set effective dates (SCD Type 2 metadata)...")
 
 min_date = spark.table(bronze_table).selectExpr("min(event_date) as min_date").collect()[0]['min_date']
-print(f"   Earliest event date: {min_date}")
-print(f"   All products will be effective from: {min_date}")
-print(f"   All products will be effective to: 9999-12-31 (end of time)")
-print(f"   All products will be current: TRUE")
+logger.info("   Earliest event date: {min_date}")
+logger.info("   All products will be effective from: {min_date}")
+logger.info("   All products will be effective to: 9999-12-31 (end of time)")
+logger.info("   All products will be current: TRUE")
 
 df_products_versioned = df_products_clean \
     .withColumn("effective_from", F.lit(min_date).cast("date")) \
@@ -667,12 +673,12 @@ df_products_versioned = df_products_clean \
     .withColumn("is_current_version", F.lit(True)) \
     .withColumn("version_number", F.lit(1))  # All start at version 1
 
-print("   ✅ SCD Type 2 metadata added")
+logger.info("    SCD Type 2 metadata added")
 
 # Generate surrogate keys
-print("\n🔑 Step 5: Generate surrogate keys (product_sk)...")
-print("   Why surrogate keys? So each VERSION has a unique ID!")
-print("   product_id=12345 might have product_sk=1001, 1002, 1003 (3 versions)\n")
+logger.info("\n🔑 Step 5: Generate surrogate keys (product_sk)...")
+logger.info("   Why surrogate keys? So each VERSION has a unique ID!")
+logger.info("   product_id=12345 might have product_sk=1001, 1002, 1003 (3 versions)\n")
 
 window_spec_sk = Window.orderBy("product_id")
 
@@ -695,16 +701,16 @@ df_products_final = df_products_versioned \
         "updated_at"
     )
 
-print(f"   Generated {df_products_final.count():,} surrogate keys")
+logger.info("   Generated {df_products_final.count():,} surrogate keys")
 
-print("\n📊 Step 6: Preview dim_products:")
+logger.info("\n Step 6: Preview dim_products:")
 df_products_final.orderBy("product_sk").show(10, truncate=False)
 
-print("\n📊 Sample products with multiple versions (after future updates):")
-print("   (Right now all products are version 1 - we'll add versioning logic later)")
+logger.info("\n Sample products with multiple versions (after future updates):")
+logger.info("   (Right now all products are version 1 - we'll add versioning logic later)")
 df_products_final.filter(F.col("version_number") > 1).show(5, truncate=False)
 
-print("\n💾 Step 7: Write to Delta table...")
+logger.info("\n💾 Step 7: Write to Delta table...")
 product_table = "product_analytics.ecommerce.silver_dim_products"
 
 df_products_final.write.format("delta") \
@@ -712,20 +718,20 @@ df_products_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(product_table)
 
-print(f"\n✅ dim_products created!")
-print(f"   Table: {product_table}")
-print(f"   Rows: {df_products_final.count():,}")
-print(f"   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
-print(f"   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
+logger.info("\n dim_products created!")
+logger.info("   Table: {product_table}")
+logger.info("   Rows: {df_products_final.count():,}")
+logger.info("   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
+logger.info("   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
 
-print(f"\n🎓 KEY LEARNINGS:")
-print(f"   1. product_sk = surrogate key (unique per VERSION)")
-print(f"   2. product_id = business key (same across versions)")
-print(f"   3. effective_from/to = date range when this version was active")
-print(f"   4. is_current_version = TRUE for latest version")
-print(f"   5. This is INITIAL LOAD - all products are version 1")
-print(f"   6. Future: When price changes, we'll INSERT new row with version 2")
-print(f"\n💡 Next: We'll build incremental SCD Type 2 processing!")
+logger.info("\n🎓 KEY LEARNINGS:")
+logger.info("   1. product_sk = surrogate key (unique per VERSION)")
+logger.info("   2. product_id = business key (same across versions)")
+logger.info("   3. effective_from/to = date range when this version was active")
+logger.info("   4. is_current_version = TRUE for latest version")
+logger.info("   5. This is INITIAL LOAD - all products are version 1")
+logger.info("   6. Future: When price changes, we'll INSERT new row with version 2")
+logger.info("\n Next: We'll build incremental SCD Type 2 processing!")
 
 # COMMAND ----------
 
@@ -837,18 +843,18 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 print("="*80)
-print("BUILDING dim_users - SCD TYPE 2 (BEHAVIORAL SEGMENTS)")
+logger.info("BUILDING dim_users - SCD TYPE 2 (BEHAVIORAL SEGMENTS)")
 print("="*80)
-print("\n👥 Tracking user evolution: casual → engaged → power_user\n")
+logger.info("\n👥 Tracking user evolution: casual → engaged → power_user\n")
 
 print("-"*80)
-print("INITIAL LOAD STRATEGY")
+logger.info("INITIAL LOAD STRATEGY")
 print("-"*80)
-print("Today: Calculate current segment based on total activity")
-print("Future: Recalculate segments and version when users evolve\n")
+logger.info("Today: Calculate current segment based on total activity")
+logger.info("Future: Recalculate segments and version when users evolve\n")
 
 # Extract user activity from Bronze
-print("📈 Step 1: Calculate user activity metrics from Bronze...")
+logger.info(" Step 1: Calculate user activity metrics from Bronze...")
 
 bronze_table = config.get_table('bronze_events')
 
@@ -867,11 +873,11 @@ df_user_activity = spark.table(bronze_table) \
     )
 
 user_count = df_user_activity.count()
-print(f"   Found {user_count:,} unique users in Bronze")
+logger.info("   Found {user_count:,} unique users in Bronze")
 
 # Calculate user segment based on activity
-print("\n🎯 Step 2: Calculate behavioral segments...")
-print("   Segments: casual (1-5 events), engaged (6-20 events), power_user (21+ events)")
+logger.info("\n Step 2: Calculate behavioral segments...")
+logger.info("   Segments: casual (1-5 events), engaged (6-20 events), power_user (21+ events)")
 
 df_users_segmented = df_user_activity \
     .withColumn("user_segment",
@@ -883,14 +889,14 @@ df_users_segmented = df_user_activity \
     .withColumn("avg_events_per_day",
                 F.round(F.col("total_events") / F.col("days_active"), 2))
 
-print("   ✅ Segments calculated")
+logger.info("    Segments calculated")
 
-print("\n📊 Segment distribution:")
+logger.info("\n Segment distribution:")
 df_users_segmented.groupBy("user_segment").count().orderBy(F.desc("count")).show()
 
 # Add SCD Type 2 metadata
-print("\n📅 Step 3: Add SCD Type 2 metadata (effective dates, versioning)...")
-print("   All users start at version 1 with effective_from = first_seen_date")
+logger.info("\n Step 3: Add SCD Type 2 metadata (effective dates, versioning)...")
+logger.info("   All users start at version 1 with effective_from = first_seen_date")
 
 df_users_versioned = df_users_segmented \
     .withColumn("effective_from", F.col("first_seen_date")) \
@@ -898,12 +904,12 @@ df_users_versioned = df_users_segmented \
     .withColumn("is_current_version", F.lit(True)) \
     .withColumn("version_number", F.lit(1))
 
-print("   ✅ SCD Type 2 metadata added")
+logger.info("    SCD Type 2 metadata added")
 
 # Generate surrogate keys
-print("\n🔑 Step 4: Generate surrogate keys (user_sk)...")
-print("   Why? So each user SEGMENT VERSION gets a unique ID!")
-print("   user_id=12345 might have user_sk=5001 (casual), 5002 (engaged), 5003 (power_user)\n")
+logger.info("\n🔑 Step 4: Generate surrogate keys (user_sk)...")
+logger.info("   Why? So each user SEGMENT VERSION gets a unique ID!")
+logger.info("   user_id=12345 might have user_sk=5001 (casual), 5002 (engaged), 5003 (power_user)\n")
 
 window_spec = Window.orderBy("user_id")
 
@@ -932,12 +938,12 @@ df_users_final = df_users_versioned \
         "updated_at"
     )
 
-print(f"   Generated {df_users_final.count():,} surrogate keys")
+logger.info("   Generated {df_users_final.count():,} surrogate keys")
 
-print("\n📊 Step 5: Preview dim_users:")
+logger.info("\n Step 5: Preview dim_users:")
 df_users_final.orderBy(F.desc("total_events")).show(10, truncate=False)
 
-print("\n💾 Step 6: Write to Delta table...")
+logger.info("\n💾 Step 6: Write to Delta table...")
 user_table = "product_analytics.ecommerce.silver_dim_users"
 
 df_users_final.write.format("delta") \
@@ -945,13 +951,13 @@ df_users_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(user_table)
 
-print(f"\n✅ dim_users created!")
-print(f"   Table: {user_table}")
-print(f"   Rows: {df_users_final.count():,}")
-print(f"   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
-print(f"   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
+logger.info("\n dim_users created!")
+logger.info("   Table: {user_table}")
+logger.info("   Rows: {df_users_final.count():,}")
+logger.info("   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
+logger.info("   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
 
-print(f"\n📊 Segment breakdown:")
+logger.info("\n Segment breakdown:")
 df_users_final.groupBy("user_segment") \
     .agg(
         F.count("*").alias("user_count"),
@@ -961,14 +967,14 @@ df_users_final.groupBy("user_segment") \
     .orderBy(F.desc("user_count")) \
     .show()
 
-print(f"\n🎓 KEY LEARNINGS:")
-print(f"   1. user_sk = surrogate key (unique per SEGMENT VERSION)")
-print(f"   2. user_id = business key (same user, different segments over time)")
-print(f"   3. user_segment tracks behavioral evolution (casual → engaged → power_user)")
-print(f"   4. effective_from = user's first_seen_date (when they started)")
-print(f"   5. This is INITIAL LOAD - all users are version 1")
-print(f"   6. Future: When segment changes, INSERT new row with new segment")
-print(f"\n💡 Next: Build fact tables that JOIN to these dimensions via surrogate keys!")
+logger.info("\n🎓 KEY LEARNINGS:")
+logger.info("   1. user_sk = surrogate key (unique per SEGMENT VERSION)")
+logger.info("   2. user_id = business key (same user, different segments over time)")
+logger.info("   3. user_segment tracks behavioral evolution (casual → engaged → power_user)")
+logger.info("   4. effective_from = user's first_seen_date (when they started)")
+logger.info("   5. This is INITIAL LOAD - all users are version 1")
+logger.info("   6. Future: When segment changes, INSERT new row with new segment")
+logger.info("\n Next: Build fact tables that JOIN to these dimensions via surrogate keys!")
 
 # COMMAND ----------
 
@@ -1148,13 +1154,13 @@ Next: Build fact_events with all surrogate key lookups!
 """
 
 print("="*80)
-print("FACT TABLE DESIGN COMPLETE")
+logger.info("FACT TABLE DESIGN COMPLETE")
 print("="*80)
-print("\n📐 Architecture: STAR SCHEMA")
-print("   Grain: One row per event")
-print("   Joins: 3-4 (vs 6-8 for snowflake)")
-print("   Performance: Optimized for analytics\n")
-print("🎯 Next: Build fact_events with surrogate key lookups!")
+logger.info("\n📐 Architecture: STAR SCHEMA")
+logger.info("   Grain: One row per event")
+logger.info("   Joins: 3-4 (vs 6-8 for snowflake)")
+logger.info("   Performance: Optimized for analytics\n")
+logger.info(" Next: Build fact_events with surrogate key lookups!")
 
 # COMMAND ----------
 
@@ -1201,21 +1207,21 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 print("="*80)
-print("BUILDING fact_events - INITIAL LOAD")
+logger.info("BUILDING fact_events - INITIAL LOAD")
 print("="*80)
-print("\n🎯 Grain: ONE ROW PER EVENT")
-print("🔑 Strategy: Lookup all surrogate keys from dimensions\n")
+logger.info("\n Grain: ONE ROW PER EVENT")
+logger.info("🔑 Strategy: Lookup all surrogate keys from dimensions\n")
 
 # Read Bronze events
-print("📦 Step 1: Read Bronze events...")
+logger.info(" Step 1: Read Bronze events...")
 bronze_table = "product_analytics.ecommerce.bronze_events"
 df_events = spark.table(bronze_table)
 
 event_count = df_events.count()
-print(f"   Found {event_count:,} events in Bronze")
+logger.info("   Found {event_count:,} events in Bronze")
 
 # Lookup date_sk
-print("\n📅 Step 2: Lookup date_sk from dim_date...")
+logger.info("\n Step 2: Lookup date_sk from dim_date...")
 df_dates = spark.table("product_analytics.ecommerce.silver_dim_date")
 
 df_events_with_date = df_events.alias("e").join(
@@ -1227,12 +1233,12 @@ df_events_with_date = df_events.alias("e").join(
     F.coalesce(F.col("d.date_key"), F.lit(-1)).alias("date_sk")  # -1 = unknown
 )
 
-print("   ✅ date_sk joined")
+logger.info("    date_sk joined")
 
 # Lookup user_sk (current version only for initial load)
-print("\n👥 Step 3: Lookup user_sk from dim_users...")
-print("   Note: For initial load, we use current version only")
-print("   Future: For incremental, we'll do SCD Type 2 date range join")
+logger.info("\n👥 Step 3: Lookup user_sk from dim_users...")
+logger.info("   Note: For initial load, we use current version only")
+logger.info("   Future: For incremental, we'll do SCD Type 2 date range join")
 
 df_users = spark.table("product_analytics.ecommerce.silver_dim_users") \
     .filter(F.col("is_current_version") == True) \
@@ -1247,12 +1253,12 @@ df_events_with_user = df_events_with_date.alias("e").join(
     F.coalesce(F.col("u.user_sk"), F.lit(-1)).alias("user_sk")  # -1 = unknown
 )
 
-print("   ✅ user_sk joined")
+logger.info("    user_sk joined")
 
 # Lookup product_sk (SCD Type 2: date range join)
-print("\n📦 Step 4: Lookup product_sk from dim_products (SCD Type 2 join)...")
-print("   This is the CRITICAL join that shows SCD Type 2 point-in-time accuracy!")
-print("   We match: product_id AND event_date within [effective_from, effective_to)")
+logger.info("\n Step 4: Lookup product_sk from dim_products (SCD Type 2 join)...")
+logger.info("   This is the CRITICAL join that shows SCD Type 2 point-in-time accuracy!")
+logger.info("   We match: product_id AND event_date within [effective_from, effective_to)")
 
 df_products = spark.table("product_analytics.ecommerce.silver_dim_products") \
     .select(
@@ -1277,11 +1283,11 @@ df_events_with_product = df_events_with_user.alias("e").join(
     F.col("p.price").alias("price_at_event")  # Historical price!
 )
 
-print("   ✅ product_sk joined with SCD Type 2 date range")
-print("   ✅ price_at_event captured (price when event happened)")
+logger.info("    product_sk joined with SCD Type 2 date range")
+logger.info("    price_at_event captured (price when event happened)")
 
 # Add measures
-print("\n📊 Step 5: Add measures...")
+logger.info("\n Step 5: Add measures...")
 
 df_fact_events = df_events_with_product \
     .withColumn("event_count", F.lit(1)) \
@@ -1309,18 +1315,18 @@ df_fact_events = df_events_with_product \
         "created_at"
     )
 
-print("   ✅ Measures added: event_count, quantity, revenue")
+logger.info("    Measures added: event_count, quantity, revenue")
 
-print("\n📋 Step 6: Preview fact_events:")
+logger.info("\n📋 Step 6: Preview fact_events:")
 df_fact_events.show(10, truncate=False)
 
-print("\n📊 Data Quality Check:")
-print(f"   Total events: {df_fact_events.count():,}")
-print(f"   Events with valid date_sk: {df_fact_events.filter(F.col('date_sk') != -1).count():,}")
-print(f"   Events with valid user_sk: {df_fact_events.filter(F.col('user_sk') != -1).count():,}")
-print(f"   Events with valid product_sk: {df_fact_events.filter(F.col('product_sk') != -1).count():,}")
+logger.info("\n Data Quality Check:")
+logger.info("   Total events: {df_fact_events.count():,}")
+logger.info("   Events with valid date_sk: {df_fact_events.filter(F.col('date_sk') != -1).count():,}")
+logger.info("   Events with valid user_sk: {df_fact_events.filter(F.col('user_sk') != -1).count():,}")
+logger.info("   Events with valid product_sk: {df_fact_events.filter(F.col('product_sk') != -1).count():,}")
 
-print("\n💰 Revenue Check:")
+logger.info("\n💰 Revenue Check:")
 df_fact_events.groupBy("event_type") \
     .agg(
         F.count("*").alias("event_count"),
@@ -1329,8 +1335,8 @@ df_fact_events.groupBy("event_type") \
     .orderBy(F.desc("event_count")) \
     .show()
 
-print("\n💾 Step 7: Write to Delta table...")
-print("   🔑 Delta Feature: ACID Transaction (all or nothing write)")
+logger.info("\n💾 Step 7: Write to Delta table...")
+logger.info("   🔑 Delta Feature: ACID Transaction (all or nothing write)")
 
 fact_table = "product_analytics.ecommerce.fact_events"
 
@@ -1341,18 +1347,18 @@ df_fact_events.write.format("delta") \
     .option("delta.autoOptimize.autoCompact", "true") \
     .saveAsTable(fact_table)
 
-print(f"\n✅ fact_events created!")
-print(f"   Table: {fact_table}")
-print(f"   Rows: {df_fact_events.count():,}")
+logger.info("\n fact_events created!")
+logger.info("   Table: {fact_table}")
+logger.info("   Rows: {df_fact_events.count():,}")
 
-print(f"\n🎉 STAR SCHEMA COMPLETE!")
-print(f"   ✅ dim_date ({spark.table('product_analytics.ecommerce.silver_dim_date').count():,} rows)")
-print(f"   ✅ dim_categories ({spark.table('product_analytics.ecommerce.silver_dim_categories').count():,} rows)")
-print(f"   ✅ dim_products ({spark.table('product_analytics.ecommerce.silver_dim_products').count():,} rows)")
-print(f"   ✅ dim_users ({spark.table('product_analytics.ecommerce.silver_dim_users').count():,} rows)")
-print(f"   ✅ fact_events ({df_fact_events.count():,} rows)")
+logger.info("\n🎉 STAR SCHEMA COMPLETE!")
+logger.info("    dim_date ({spark.table('product_analytics.ecommerce.silver_dim_date').count():,} rows)")
+logger.info("    dim_categories ({spark.table('product_analytics.ecommerce.silver_dim_categories').count():,} rows)")
+logger.info("    dim_products ({spark.table('product_analytics.ecommerce.silver_dim_products').count():,} rows)")
+logger.info("    dim_users ({spark.table('product_analytics.ecommerce.silver_dim_users').count():,} rows)")
+logger.info("    fact_events ({df_fact_events.count():,} rows)")
 
-print(f"\n🔑 Next: Demonstrate Delta features (OPTIMIZE, Time Travel, MERGE)!")
+logger.info("\n🔑 Next: Demonstrate Delta features (OPTIMIZE, Time Travel, MERGE)!")
 
 # COMMAND ----------
 
@@ -1401,22 +1407,22 @@ making queries 5-10x faster. Traditional databases don't give you this control."
 """
 
 print("="*80)
-print("DELTA FEATURE #1: OPTIMIZE + Z-ORDER")
+logger.info("DELTA FEATURE #1: OPTIMIZE + Z-ORDER")
 print("="*80)
-print("\n🛠️ Compacting files and co-locating related data for faster queries\n")
+logger.info("\n🛠 Compacting files and co-locating related data for faster queries\n")
 
 # Check current file stats
-print("📁 BEFORE OPTIMIZE:")
+logger.info("📁 BEFORE OPTIMIZE:")
 spark.sql("""
     DESCRIBE DETAIL product_analytics.ecommerce.fact_events
 """).select("numFiles", "sizeInBytes").show()
 
-print("\n🛠️ Running OPTIMIZE with Z-ORDER...")
-print("   Z-ORDER BY (event_date, product_sk):")
-print("   - Co-locates events from same date")
-print("   - Co-locates events for same product")
-print("   - Most queries filter by date and/or product")
-print("   - This makes those queries MUCH faster!\n")
+logger.info("\n🛠 Running OPTIMIZE with Z-ORDER...")
+logger.info("   Z-ORDER BY (event_date, product_sk):")
+logger.info("   - Co-locates events from same date")
+logger.info("   - Co-locates events for same product")
+logger.info("   - Most queries filter by date and/or product")
+logger.info("   - This makes those queries MUCH faster!\n")
 
 # Run OPTIMIZE
 spark.sql("""
@@ -1424,29 +1430,29 @@ spark.sql("""
     ZORDER BY (event_date, product_sk)
 """)
 
-print("\n✅ OPTIMIZE complete!\n")
+logger.info("\n OPTIMIZE complete!\n")
 
 # Check stats after
-print("📁 AFTER OPTIMIZE:")
+logger.info("📁 AFTER OPTIMIZE:")
 spark.sql("""
     DESCRIBE DETAIL product_analytics.ecommerce.fact_events
 """).select("numFiles", "sizeInBytes").show()
 
-print("\n📊 Expected Results:")
-print("   - numFiles: Reduced by 50-90% (fewer, larger files)")
-print("   - Query performance: 2-10x faster for date/product filters")
-print("   - Storage: Same or smaller (better compression on larger files)\n")
+logger.info("\n Expected Results:")
+logger.info("   - numFiles: Reduced by 50-90% (fewer, larger files)")
+logger.info("   - Query performance: 2-10x faster for date/product filters")
+logger.info("   - Storage: Same or smaller (better compression on larger files)\n")
 
-print("🎯 WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
-print("   ✅ We control file layout (can't do this in traditional DB)")
-print("   ✅ We see immediate query speedup")
-print("   ✅ We choose which columns to co-locate (Z-ORDER)")
-print("   ✅ This is a Lakehouse superpower!\n")
+logger.info(" WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
+logger.info("    We control file layout (can't do this in traditional DB)")
+logger.info("    We see immediate query speedup")
+logger.info("    We choose which columns to co-locate (Z-ORDER)")
+logger.info("    This is a Lakehouse superpower!\n")
 
-print("💡 INTERVIEW TIP:")
-print("   'We chose Delta because OPTIMIZE + Z-ORDER gave us 5-10x speedup")
-print("    on date/product filtered queries. Traditional databases don't")
-print("    expose this level of storage control.'")
+logger.info(" INTERVIEW TIP:")
+logger.info("   'We chose Delta because OPTIMIZE + Z-ORDER gave us 5-10x speedup")
+logger.info("    on date/product filtered queries. Traditional databases don't")
+logger.info("    expose this level of storage control.'")
 
 # COMMAND ----------
 
@@ -1492,12 +1498,12 @@ Traditional databases charge extra for this feature or don't offer it at all."
 """
 
 print("="*80)
-print("DELTA FEATURE #2: TIME TRAVEL")
+logger.info("DELTA FEATURE #2: TIME TRAVEL")
 print("="*80)
-print("\n⏱️ Query historical versions of any table!\n")
+logger.info("\n⏱ Query historical versions of any table!\n")
 
 # Show version history
-print("📜 Version History for fact_events:")
+logger.info("📜 Version History for fact_events:")
 history_df = spark.sql("""
     DESCRIBE HISTORY product_analytics.ecommerce.fact_events
 """)
@@ -1511,11 +1517,11 @@ history_df.select(
 ).show(10, truncate=False)
 
 latest_version = history_df.selectExpr("max(version) as max_ver").collect()[0]['max_ver']
-print(f"\n   Latest version: {latest_version}")
-print(f"   Total versions tracked: {latest_version + 1}\n")
+logger.info("\n   Latest version: {latest_version}")
+logger.info("   Total versions tracked: {latest_version + 1}\n")
 
 # Query specific version
-print("🔍 Query Version 0 (original data before OPTIMIZE):")
+logger.info(" Query Version 0 (original data before OPTIMIZE):")
 df_v0 = spark.sql("""
     SELECT event_type, COUNT(*) as count
     FROM product_analytics.ecommerce.fact_events VERSION AS OF 0
@@ -1524,7 +1530,7 @@ df_v0 = spark.sql("""
 """)
 df_v0.show()
 
-print(f"\n🔍 Query Version {latest_version} (current data after OPTIMIZE):")
+logger.info("\n Query Version {latest_version} (current data after OPTIMIZE):")
 df_current = spark.sql(f"""
     SELECT event_type, COUNT(*) as count
     FROM product_analytics.ecommerce.fact_events VERSION AS OF {latest_version}
@@ -1533,35 +1539,35 @@ df_current = spark.sql(f"""
 """)
 df_current.show()
 
-print("\n✅ SAME DATA, DIFFERENT VERSIONS!")
-print("   Even though we ran OPTIMIZE, old versions are still queryable.\n")
+logger.info("\n SAME DATA, DIFFERENT VERSIONS!")
+logger.info("   Even though we ran OPTIMIZE, old versions are still queryable.\n")
 
-print("💡 MORE TIME TRAVEL EXAMPLES:\n")
+logger.info(" MORE TIME TRAVEL EXAMPLES:\n")
 
-print("   Example 1: Query by timestamp")
-print("   SELECT * FROM fact_events TIMESTAMP AS OF '2026-08-07 04:00:00'\n")
+logger.info("   Example 1: Query by timestamp")
+logger.info("   SELECT * FROM fact_events TIMESTAMP AS OF '2026-08-07 04:00:00'\n")
 
-print("   Example 2: Query yesterday's data")
-print("   SELECT * FROM fact_events VERSION AS OF 0\n")
+logger.info("   Example 2: Query yesterday's data")
+logger.info("   SELECT * FROM fact_events VERSION AS OF 0\n")
 
-print("   Example 3: Compare versions")
-print("   SELECT a.product_sk, a.price_at_event as old_price, b.price_at_event as new_price")
-print("   FROM fact_events VERSION AS OF 0 a")
-print("   JOIN fact_events VERSION AS OF 1 b ON a.event_time = b.event_time\n")
+logger.info("   Example 3: Compare versions")
+logger.info("   SELECT a.product_sk, a.price_at_event as old_price, b.price_at_event as new_price")
+logger.info("   FROM fact_events VERSION AS OF 0 a")
+logger.info("   JOIN fact_events VERSION AS OF 1 b ON a.event_time = b.event_time\n")
 
-print("   Example 4: Restore old version")
-print("   RESTORE TABLE fact_events TO VERSION AS OF 0\n")
+logger.info("   Example 4: Restore old version")
+logger.info("   RESTORE TABLE fact_events TO VERSION AS OF 0\n")
 
-print("🎯 WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
-print("   ✅ Time travel is FREE and built-in")
-print("   ✅ No backups needed for recovery")
-print("   ✅ Perfect audit trail")
-print("   ✅ Reproduce any historical analysis\n")
+logger.info(" WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
+logger.info("    Time travel is FREE and built-in")
+logger.info("    No backups needed for recovery")
+logger.info("    Perfect audit trail")
+logger.info("    Reproduce any historical analysis\n")
 
-print("💡 INTERVIEW TIP:")
-print("   'We chose Delta because when an analyst accidentally deleted 1M rows,")
-print("    we recovered in 30 seconds with VERSION AS OF. Traditional databases")
-print("    would require restoring from backup, taking hours or days.'")
+logger.info(" INTERVIEW TIP:")
+logger.info("   'We chose Delta because when an analyst accidentally deleted 1M rows,")
+logger.info("    we recovered in 30 seconds with VERSION AS OF. Traditional databases")
+logger.info("    would require restoring from backup, taking hours or days.'")
 
 # COMMAND ----------
 
@@ -1625,19 +1631,19 @@ from delta.tables import DeltaTable
 from pyspark.sql import functions as F
 
 print("="*80)
-print("DELTA FEATURE #3: MERGE FOR INCREMENTAL SCD TYPE 2")
+logger.info("DELTA FEATURE #3: MERGE FOR INCREMENTAL SCD TYPE 2")
 print("="*80)
-print("\n🔄 Demonstrating atomic upsert for dimension updates!\n")
+logger.info("\n Demonstrating atomic upsert for dimension updates!\n")
 
 # Simulate new product data (price changes)
-print("📦 Step 1: Simulate new product data (price changes)...\n")
+logger.info(" Step 1: Simulate new product data (price changes)...\n")
 
 # Get current products
 df_current_products = spark.table("product_analytics.ecommerce.silver_dim_products") \
     .filter(F.col("is_current_version") == True) \
     .limit(10)
 
-print("   Current prices for 10 products:")
+logger.info("   Current prices for 10 products:")
 df_current_products.select("product_sk", "product_id", "brand", "price").show()
 
 # Simulate price changes
@@ -1645,26 +1651,26 @@ df_new_products = df_current_products \
     .withColumn("price", F.col("price") * F.lit(1.1))  \
     .select("product_id", "brand", "price", "category_sk", "category_code")
 
-print("\n   NEW prices (10% increase):")
+logger.info("\n   NEW prices (10% increase):")
 df_new_products.select("product_id", "brand", "price").show()
 
-print("\n🔍 Step 2: Preview MERGE logic...")
-print("\n   Without MERGE (traditional approach):")
-print("   1. UPDATE old rows: SET is_current=FALSE, effective_to=yesterday")
-print("   2. INSERT new rows: new version with new price")
-print("   3. UPDATE surrogate keys: Increment max(product_sk)")
-print("   ❌ Problem: 3 operations, NOT atomic!\n")
+logger.info("\n Step 2: Preview MERGE logic...")
+logger.info("\n   Without MERGE (traditional approach):")
+logger.info("   1. UPDATE old rows: SET is_current=FALSE, effective_to=yesterday")
+logger.info("   2. INSERT new rows: new version with new price")
+logger.info("   3. UPDATE surrogate keys: Increment max(product_sk)")
+logger.info("    Problem: 3 operations, NOT atomic!\n")
 
-print("   With Delta MERGE (Lakehouse approach):")
-print("   MERGE INTO dim_products")
-print("   USING new_products")
-print("   WHEN MATCHED AND price_changed THEN UPDATE (close old version)")
-print("   WHEN NOT MATCHED THEN INSERT (new version)")
-print("   ✅ Solution: ONE atomic operation!\n")
+logger.info("   With Delta MERGE (Lakehouse approach):")
+logger.info("   MERGE INTO dim_products")
+logger.info("   USING new_products")
+logger.info("   WHEN MATCHED AND price_changed THEN UPDATE (close old version)")
+logger.info("   WHEN NOT MATCHED THEN INSERT (new version)")
+logger.info("    Solution: ONE atomic operation!\n")
 
-print("🛠️ Step 3: Execute MERGE...")
-print("   NOTE: For demo, we'll show the MERGE syntax but not execute")
-print("   (to avoid modifying dimension data mid-presentation)\n")
+logger.info("🛠 Step 3: Execute MERGE...")
+logger.info("   NOTE: For demo, we'll show the MERGE syntax but not execute")
+logger.info("   (to avoid modifying dimension data mid-presentation)\n")
 
 merge_code = '''
 # Get the target Delta table
@@ -1705,38 +1711,38 @@ df_new_versions.write.format("delta").mode("append").saveAsTable(
 )
 '''
 
-print("📝 MERGE Code:")
+logger.info(" MERGE Code:")
 print(merge_code)
 
-print("\n✅ MERGE Explained:")
-print("   1. Match on product_id + is_current_version=TRUE")
-print("   2. If price changed: UPDATE old row (close it out)")
-print("   3. INSERT new row with:")
-print("      - New product_sk (max + 1)")
-print("      - New price")
-print("      - effective_from = today")
-print("      - effective_to = 9999-12-31")
-print("      - is_current_version = TRUE")
-print("      - version_number = 2\n")
+logger.info("\n MERGE Explained:")
+logger.info("   1. Match on product_id + is_current_version=TRUE")
+logger.info("   2. If price changed: UPDATE old row (close it out)")
+logger.info("   3. INSERT new row with:")
+logger.info("      - New product_sk (max + 1)")
+logger.info("      - New price")
+logger.info("      - effective_from = today")
+logger.info("      - effective_to = 9999-12-31")
+logger.info("      - is_current_version = TRUE")
+logger.info("      - version_number = 2\n")
 
-print("🎯 WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
-print("   ✅ ONE atomic operation (not 3 separate ones)")
-print("   ✅ No partial state visible to concurrent queries")
-print("   ✅ Built-in transaction log ensures consistency")
-print("   ✅ Perfect for SCD Type 2 dimensional modeling\n")
+logger.info(" WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
+logger.info("    ONE atomic operation (not 3 separate ones)")
+logger.info("    No partial state visible to concurrent queries")
+logger.info("    Built-in transaction log ensures consistency")
+logger.info("    Perfect for SCD Type 2 dimensional modeling\n")
 
-print("💡 INTERVIEW TIP:")
-print("   'We chose Delta because MERGE made our SCD Type 2 incremental updates")
-print("    atomic and safe. Without Delta, we'd risk data inconsistency with")
-print("    separate DELETE/UPDATE/INSERT operations. MERGE is the #1 reason")
-print("    to use Delta Lake for dimensional modeling.'\n")
+logger.info(" INTERVIEW TIP:")
+logger.info("   'We chose Delta because MERGE made our SCD Type 2 incremental updates")
+logger.info("    atomic and safe. Without Delta, we'd risk data inconsistency with")
+logger.info("    separate DELETE/UPDATE/INSERT operations. MERGE is the #1 reason")
+logger.info("    to use Delta Lake for dimensional modeling.'\n")
 
-print("🔑 Real-world use cases for MERGE:")
-print("   1. SCD Type 2 dimension updates (our use case)")
-print("   2. CDC from operational databases (MySQL, Postgres)")
-print("   3. Deduplication (MERGE ... WHEN MATCHED THEN IGNORE)")
-print("   4. Stream-to-batch upserts (Kafka → Delta)")
-print("   5. Slowly changing facts (late-arriving data)")
+logger.info("🔑 Real-world use cases for MERGE:")
+logger.info("   1. SCD Type 2 dimension updates (our use case)")
+logger.info("   2. CDC from operational databases (MySQL, Postgres)")
+logger.info("   3. Deduplication (MERGE ... WHEN MATCHED THEN IGNORE)")
+logger.info("   4. Stream-to-batch upserts (Kafka → Delta)")
+logger.info("   5. Slowly changing facts (late-arriving data)")
 
 # COMMAND ----------
 
@@ -1804,20 +1810,20 @@ SAMPLE QUERIES - DEMONSTRATE THE VALUE!
 """
 
 print("="*80)
-print("🎉 STAR SCHEMA COMPLETE - READY FOR ANALYTICS!")
+logger.info("🎉 STAR SCHEMA COMPLETE - READY FOR ANALYTICS!")
 print("="*80)
 
-print("\n📊 Table Summary:")
-print(f"   ✅ dim_date:         {spark.table('product_analytics.ecommerce.silver_dim_date').count():>10,} rows")
-print(f"   ✅ dim_categories:   {spark.table('product_analytics.ecommerce.silver_dim_categories').count():>10,} rows")
-print(f"   ✅ dim_products:     {spark.table('product_analytics.ecommerce.silver_dim_products').count():>10,} rows")
-print(f"   ✅ dim_users:        {spark.table('product_analytics.ecommerce.silver_dim_users').count():>10,} rows")
-print(f"   ✅ fact_events:      {spark.table('product_analytics.ecommerce.fact_events').count():>10,} rows")
+logger.info("\n Table Summary:")
+logger.info("    dim_date:         {spark.table('product_analytics.ecommerce.silver_dim_date').count():>10,} rows")
+logger.info("    dim_categories:   {spark.table('product_analytics.ecommerce.silver_dim_categories').count():>10,} rows")
+logger.info("    dim_products:     {spark.table('product_analytics.ecommerce.silver_dim_products').count():>10,} rows")
+logger.info("    dim_users:        {spark.table('product_analytics.ecommerce.silver_dim_users').count():>10,} rows")
+logger.info("    fact_events:      {spark.table('product_analytics.ecommerce.fact_events').count():>10,} rows")
 
 print("\n" + "="*80)
-print("🔍 SAMPLE QUERY #1: Monthly Revenue by Brand")
+logger.info(" SAMPLE QUERY #1: Monthly Revenue by Brand")
 print("="*80)
-print("Demonstrates: Star schema joins, date dimension, aggregation\n")
+logger.info("Demonstrates: Star schema joins, date dimension, aggregation\n")
 
 query1 = """
 SELECT 
@@ -1839,16 +1845,16 @@ ORDER BY d.month, total_revenue DESC
 LIMIT 20
 """
 
-print("📝 SQL Query:")
+logger.info(" SQL Query:")
 print(query1)
 
-print("\n📊 Results:")
+logger.info("\n Results:")
 spark.sql(query1).show(20, truncate=False)
 
 print("\n" + "="*80)
-print("🔍 SAMPLE QUERY #2: User Segment Behavior Analysis")
+logger.info(" SAMPLE QUERY #2: User Segment Behavior Analysis")
 print("="*80)
-print("Demonstrates: SCD Type 2 accuracy, behavioral segments\n")
+logger.info("Demonstrates: SCD Type 2 accuracy, behavioral segments\n")
 
 query2 = """
 SELECT 
@@ -1865,16 +1871,16 @@ GROUP BY u.user_segment
 ORDER BY total_revenue DESC
 """
 
-print("📝 SQL Query:")
+logger.info(" SQL Query:")
 print(query2)
 
-print("\n📊 Results:")
+logger.info("\n Results:")
 spark.sql(query2).show()
 
 print("\n" + "="*80)
-print("🔍 SAMPLE QUERY #3: Category Performance by Day of Week")
+logger.info(" SAMPLE QUERY #3: Category Performance by Day of Week")
 print("="*80)
-print("Demonstrates: Multi-dimension joins, date attributes\n")
+logger.info("Demonstrates: Multi-dimension joins, date attributes\n")
 
 query3 = """
 SELECT 
@@ -1895,47 +1901,47 @@ ORDER BY d.day_of_week, revenue DESC
 LIMIT 30
 """
 
-print("📝 SQL Query:")
+logger.info(" SQL Query:")
 print(query3)
 
-print("\n📊 Results:")
+logger.info("\n Results:")
 spark.sql(query3).show(30, truncate=False)
 
 print("\n" + "="*80)
-print("🎓 PRODUCTION-READY INTERVIEW TALKING POINTS")
+logger.info("🎓 PRODUCTION-READY INTERVIEW TALKING POINTS")
 print("="*80)
 
-print("\n1️⃣  ARCHITECTURE DECISION: Why Star Schema?")
-print("   'I chose star schema over snowflake because:'")
-print("   - 3-4 joins vs 6-8 (50% fewer joins)")
-print("   - Faster queries in distributed systems (less shuffle)")
-print("   - BI tools prefer denormalized dimensions")
-print("   - Storage is cheap, compute is expensive")
+logger.info("\n1⃣  ARCHITECTURE DECISION: Why Star Schema?")
+logger.info("   'I chose star schema over snowflake because:'")
+logger.info("   - 3-4 joins vs 6-8 (50% fewer joins)")
+logger.info("   - Faster queries in distributed systems (less shuffle)")
+logger.info("   - BI tools prefer denormalized dimensions")
+logger.info("   - Storage is cheap, compute is expensive")
 
-print("\n2️⃣  TECHNOLOGY DECISION: Why Delta Lake?")
-print("   'I chose Delta Lake over traditional database because:'")
-print("   - MERGE: Atomic SCD Type 2 updates (no multi-step inconsistency)")
-print("   - OPTIMIZE + Z-ORDER: 5-10x query speedup on our access patterns")
-print("   - Time Travel: Free audit trail and instant recovery")
-print("   - ACID transactions: Data consistency without database overhead")
+logger.info("\n2⃣  TECHNOLOGY DECISION: Why Delta Lake?")
+logger.info("   'I chose Delta Lake over traditional database because:'")
+logger.info("   - MERGE: Atomic SCD Type 2 updates (no multi-step inconsistency)")
+logger.info("   - OPTIMIZE + Z-ORDER: 5-10x query speedup on our access patterns")
+logger.info("   - Time Travel: Free audit trail and instant recovery")
+logger.info("   - ACID transactions: Data consistency without database overhead")
 
-print("\n3️⃣  DIMENSIONAL MODELING: Why SCD Type 2?")
-print("   'I used SCD Type 2 for products and users because:'")
-print("   - Point-in-time accuracy: Query revenue at historical prices")
-print("   - User evolution: Track behavioral changes (casual → power user)")
-print("   - Surrogate keys: Each version gets unique ID")
-print("   - Incremental updates: MERGE makes it atomic and safe")
+logger.info("\n3⃣  DIMENSIONAL MODELING: Why SCD Type 2?")
+logger.info("   'I used SCD Type 2 for products and users because:'")
+logger.info("   - Point-in-time accuracy: Query revenue at historical prices")
+logger.info("   - User evolution: Track behavioral changes (casual → power user)")
+logger.info("   - Surrogate keys: Each version gets unique ID")
+logger.info("   - Incremental updates: MERGE makes it atomic and safe")
 
-print("\n4️⃣  PROOF OF VALUE: What makes this production-ready?")
-print("   - ✅ Git versioned code with naming standards")
-print("   - ✅ Delta OPTIMIZE reduces file count 90%")
-print("   - ✅ Z-ORDER co-locates filtered data")
-print("   - ✅ Time Travel provides instant recovery")
-print("   - ✅ MERGE enables atomic SCD Type 2 updates")
-print("   - ✅ Star schema enables fast BI queries")
+logger.info("\n4⃣  PROOF OF VALUE: What makes this production-ready?")
+logger.info("   -  Git versioned code with naming standards")
+logger.info("   -  Delta OPTIMIZE reduces file count 90%")
+logger.info("   -  Z-ORDER co-locates filtered data")
+logger.info("   -  Time Travel provides instant recovery")
+logger.info("   -  MERGE enables atomic SCD Type 2 updates")
+logger.info("   -  Star schema enables fast BI queries")
 
 print("\n" + "="*80)
-print("✅ PLATFORM COMPLETE - READY FOR PRODUCTION ANALYTICS!")
+logger.info(" PLATFORM COMPLETE - READY FOR PRODUCTION ANALYTICS!")
 print("="*80)
 
 # COMMAND ----------
@@ -2235,10 +2241,10 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 print("="*80)
-print("SURROGATE KEY GENERATION - THE MECHANICS")
+logger.info("SURROGATE KEY GENERATION - THE MECHANICS")
 print("="*80)
 print()
-print("DEMONSTRATION: Let's see row_number() in action")
+logger.info("DEMONSTRATION: Let's see row_number() in action")
 print()
 
 # Create a sample dataset with multiple versions of the same product
@@ -2255,39 +2261,39 @@ df_sample = spark.createDataFrame(data,
                                    ["product_id", "price", "version_number", 
                                     "effective_from", "effective_to"])
 
-print("BEFORE: Data with product_id and version_number, no surrogate key yet")
+logger.info("BEFORE: Data with product_id and version_number, no surrogate key yet")
 df_sample.orderBy("product_id", "version_number").show()
 
 # Generate surrogate keys using row_number()
 window_spec = Window.orderBy("product_id", "version_number")
 df_with_sk = df_sample.withColumn("product_sk", F.row_number().over(window_spec))
 
-print("AFTER: row_number() assigned sequential surrogate keys (product_sk)")
+logger.info("AFTER: row_number() assigned sequential surrogate keys (product_sk)")
 df_with_sk.orderBy("product_sk").show()
 
 print()
-print("KEY OBSERVATIONS:")
-print("  1. product_id=100 has TWO rows (2 versions) with different product_sk (1, 2)")
-print("  2. product_id=300 has TWO rows (2 versions) with different product_sk (4, 5)")
-print("  3. Each row gets a UNIQUE product_sk, even if product_id repeats")
-print("  4. Keys are sequential: 1, 2, 3, 4, 5, 6 (no gaps)")
+logger.info("KEY OBSERVATIONS:")
+logger.info("  1. product_id=100 has TWO rows (2 versions) with different product_sk (1, 2)")
+logger.info("  2. product_id=300 has TWO rows (2 versions) with different product_sk (4, 5)")
+logger.info("  3. Each row gets a UNIQUE product_sk, even if product_id repeats")
+logger.info("  4. Keys are sequential: 1, 2, 3, 4, 5, 6 (no gaps)")
 print()
-print("THIS IS HOW SCD TYPE 2 WORKS!")
-print("  - product_sk is the primary key (unique per row)")
-print("  - product_id is the business key (repeats across versions)")
-print("  - Fact table joins on product_sk, not product_id")
+logger.info("THIS IS HOW SCD TYPE 2 WORKS!")
+logger.info("  - product_sk is the primary key (unique per row)")
+logger.info("  - product_id is the business key (repeats across versions)")
+logger.info("  - Fact table joins on product_sk, not product_id")
 print()
-print("ALTERNATIVE: monotonically_increasing_id() for large datasets")
+logger.info("ALTERNATIVE: monotonically_increasing_id() for large datasets")
 df_with_monotonic = df_sample.withColumn("product_sk_monotonic", 
                                           F.monotonically_increasing_id())
 df_with_monotonic.orderBy("product_id", "version_number").show()
 
 print()
-print("Notice the HUGE gaps: 0, 8589934592, 17179869184...")
-print("  - Faster for massive datasets (parallel generation)")
-print("  - But less readable")
-print("  - Use row_number() unless you have 100M+ rows")
+logger.info("Notice the HUGE gaps: 0, 8589934592, 17179869184...")
+logger.info("  - Faster for massive datasets (parallel generation)")
+logger.info("  - But less readable")
+logger.info("  - Use row_number() unless you have 100M+ rows")
 print()
 print("="*80)
-print("NEXT: We'll build INCREMENTAL SCD Type 2 processing with proper SK extension")
+logger.info("NEXT: We'll build INCREMENTAL SCD Type 2 processing with proper SK extension")
 print("="*80)

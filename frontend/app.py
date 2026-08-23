@@ -1,9 +1,19 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import logging
+import sys
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementState
 import time
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
 
 
 # Google-inspired color palette for charts
@@ -295,18 +305,18 @@ workspace = get_workspace_client()
 @st.cache_resource
 def get_workspace_client():
     """Get Databricks workspace client (auto-auth in Apps)"""
-    print("[DEBUG] Initializing WorkspaceClient...")
+    logger.info("Initializing WorkspaceClient")
     try:
         client = WorkspaceClient()
-        print("[DEBUG] WorkspaceClient initialized successfully")
+        logger.info("WorkspaceClient initialized successfully")
         return client
     except Exception as e:
-        print(f"[ERROR] Failed to initialize WorkspaceClient: {e}")
+        logger.error(f"Failed to initialize WorkspaceClient: {e}", exc_info=True)
         raise
 
-print("[DEBUG] Getting workspace client...")
+logger.debug("Getting workspace client")
 workspace = get_workspace_client()
-print("[DEBUG] Workspace client ready")
+logger.debug("Workspace client ready")
 
 # ============ DATA REPOSITORY ============
 class MetricsRepository:
@@ -421,9 +431,9 @@ class MetricsRepository:
         return df.iloc[0] if not df.empty else None
 
 # Initialize repository
-print("[DEBUG] Initializing MetricsRepository...")
+logger.info("Initializing MetricsRepository")
 repo = MetricsRepository(workspace)
-print("[DEBUG] MetricsRepository initialized")
+logger.info("MetricsRepository initialized")
 
 # ============ SIDEBAR - VERTICAL NAVIGATION ============
 with st.sidebar:
@@ -455,9 +465,9 @@ with st.sidebar:
     st.caption(f"📦 Source: {repo.catalog}.{repo.schema}")
 
 # ============ COMPACT HEADER ============
-print("[DEBUG] Rendering UI header...")
+logger.debug("Rendering UI header")
 st.markdown("# Analytics Platform")
-print("[DEBUG] Header rendered successfully")
+logger.debug("Header rendered successfully")
 
 # ============ PAGE: OVERVIEW ============
 if selected_page == "Overview":
@@ -469,7 +479,7 @@ if selected_page == "Overview":
     </div>
     """, unsafe_allow_html=True)
 
-    print("[DEBUG] Rendering Overview page...")
+    logger.info("Rendering Overview page")
     # KPIs section
     
     try:

@@ -27,13 +27,19 @@ To get your Kaggle credentials:
 5. Add them to your .env file locally (see .env.example)
 """
 
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
 import os
 
 # Try to load from Databricks Secrets first (production)
 try:
     KAGGLE_USERNAME = dbutils.secrets.get(scope="kaggle", key="username")
     KAGGLE_KEY = dbutils.secrets.get(scope="kaggle", key="key")
-    print("✅ Loaded credentials from Databricks Secrets")
+    logger.info(" Loaded credentials from Databricks Secrets")
 except:
     # Fall back to environment variables (from .env or cluster config)
     KAGGLE_USERNAME = os.getenv('KAGGLE_USERNAME')
@@ -45,14 +51,14 @@ except:
             "\nFor local development: Create a .env file in project root\n"
             "For Databricks: Set cluster environment variables or use Secrets"
         )
-    print("✅ Loaded credentials from environment variables")
+    logger.info(" Loaded credentials from environment variables")
 
 # Set environment variables for Kaggle API
 os.environ['KAGGLE_USERNAME'] = KAGGLE_USERNAME
 os.environ['KAGGLE_KEY'] = KAGGLE_KEY
 
-print(f"Username: {KAGGLE_USERNAME}")
-print("\n✅ Kaggle API ready!")
+logger.info("Username: {KAGGLE_USERNAME}")
+logger.info("\n Kaggle API ready!")
 
 # COMMAND ----------
 
@@ -73,7 +79,7 @@ import os
 api = KaggleApi()
 api.authenticate()
 
-print("✅ Kaggle API authenticated successfully")
+logger.info(" Kaggle API authenticated successfully")
 
 # Dataset identifier
 dataset = "mkechinov/ecommerce-behavior-data-from-multi-category-store"
@@ -82,9 +88,9 @@ dataset = "mkechinov/ecommerce-behavior-data-from-multi-category-store"
 temp_download_path = "/tmp/kaggle_download"
 os.makedirs(temp_download_path, exist_ok=True)
 
-print(f"\n📥 Downloading dataset: {dataset}")
-print(f"Destination: {temp_download_path}")
-print("\n⚠️  This is a large dataset (~32GB). Download may take 10-20 minutes...\n")
+logger.info("\n📥 Downloading dataset: {dataset}")
+logger.info("Destination: {temp_download_path}")
+logger.info("\n⚠  This is a large dataset (~32GB). Download may take 10-20 minutes...\n")
 
 # Download dataset
 api.dataset_download_files(
@@ -93,15 +99,15 @@ api.dataset_download_files(
     unzip=True  # Auto-extract after download
 )
 
-print("\n✅ Dataset downloaded and extracted successfully!")
+logger.info("\n Dataset downloaded and extracted successfully!")
 
 # List downloaded files
 downloaded_files = os.listdir(temp_download_path)
-print(f"\nDownloaded files ({len(downloaded_files)}):")
+logger.info("\nDownloaded files ({len(downloaded_files)}):")
 for file in sorted(downloaded_files):
     file_path = os.path.join(temp_download_path, file)
     file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
-    print(f"  • {file} ({file_size_mb:.2f} MB)")
+    logger.info("  • {file} ({file_size_mb:.2f} MB)")
 
 # COMMAND ----------
 
@@ -117,8 +123,8 @@ import shutil
 # Get volume path from config
 volume_path = config.catalog.volume_path
 
-print(f"📍 Target Volume: {volume_path}")
-print(f"\n📦 Moving files to volume...\n")
+logger.info("📍 Target Volume: {volume_path}")
+logger.info("\n Moving files to volume...\n")
 
 # Create volume directory if it doesn't exist (though it should from SQL creation)
 os.makedirs(volume_path, exist_ok=True)
@@ -134,14 +140,14 @@ for file in downloaded_files:
         shutil.copy2(source_path, dest_path)
         
         file_size_mb = os.path.getsize(dest_path) / (1024 * 1024)
-        print(f"  ✅ {file} → {volume_path} ({file_size_mb:.2f} MB)")
+        logger.info("   {file} → {volume_path} ({file_size_mb:.2f} MB)")
         moved_files.append(file)
 
-print(f"\n✅ Successfully moved {len(moved_files)} CSV files to volume!")
+logger.info("\n Successfully moved {len(moved_files)} CSV files to volume!")
 
 # Cleanup temp directory
 shutil.rmtree(temp_download_path)
-print(f"\n🧹 Cleaned up temporary download directory")
+logger.info("\n🧹 Cleaned up temporary download directory")
 
 # COMMAND ----------
 
@@ -158,12 +164,12 @@ import subprocess
 volume_path = config.catalog.volume_path
 
 print("="*80)
-print("DATA VALIDATION SUMMARY")
+logger.info("DATA VALIDATION SUMMARY")
 print("="*80)
 
 # List all CSV files in the volume
 csv_files = [f for f in os.listdir(volume_path) if f.endswith('.csv')]
-print(f"\n📊 Total CSV files in volume: {len(csv_files)}\n")
+logger.info("\n Total CSV files in volume: {len(csv_files)}\n")
 
 # Show file details
 total_size_gb = 0
@@ -171,35 +177,35 @@ for file in sorted(csv_files):
     file_path = os.path.join(volume_path, file)
     file_size_gb = os.path.getsize(file_path) / (1024 * 1024 * 1024)
     total_size_gb += file_size_gb
-    print(f"  • {file:<50} {file_size_gb:>8.2f} GB")
+    logger.info("  • {file:<50} {file_size_gb:>8.2f} GB")
 
-print(f"\n💾 Total dataset size: {total_size_gb:.2f} GB")
+logger.info("\n💾 Total dataset size: {total_size_gb:.2f} GB")
 
 # Preview first file using pandas (small sample)
 if csv_files:
     sample_file = sorted(csv_files)[0]
     sample_path = os.path.join(volume_path, sample_file)
     
-    print(f"\n🔍 Previewing schema from: {sample_file}")
+    logger.info("\n Previewing schema from: {sample_file}")
     print("="*80)
     
     # Read first 5 rows
     df_preview = pd.read_csv(sample_path, nrows=5)
     
-    print(f"\nColumns ({len(df_preview.columns)}):")
+    logger.info("\nColumns ({len(df_preview.columns)}):")
     for col in df_preview.columns:
-        print(f"  • {col} ({df_preview[col].dtype})")
+        logger.info("  • {col} ({df_preview[col].dtype})")
     
-    print(f"\nSample data (first 5 rows):")
+    logger.info("\nSample data (first 5 rows):")
     display(df_preview)
     
     # Count total rows using wc -l (faster, no memory overhead)
-    print(f"\n📄 Counting rows in {sample_file}...")
+    logger.info("\n📄 Counting rows in {sample_file}...")
     import subprocess
     result = subprocess.run(['wc', '-l', sample_path], capture_output=True, text=True)
     row_count = int(result.stdout.split()[0]) - 1  # Subtract 1 for header
-    print(f"   Rows: {row_count:,}")
+    logger.info("   Rows: {row_count:,}")
     
 print("\n" + "="*80)
-print("✅ Data validation complete! Ready for ingestion pipeline.")
+logger.info(" Data validation complete! Ready for ingestion pipeline.")
 print("="*80)
