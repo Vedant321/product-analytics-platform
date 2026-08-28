@@ -503,6 +503,12 @@ if selected_page == "Overview":
         # Conversion Funnel
         daily_df_preview = repo.get_daily_metrics(days_filter)
         if not daily_df_preview.empty:
+            # Convert all numeric columns to proper numeric types
+            numeric_columns = ['total_revenue', 'total_events', 'total_purchases', 'total_carts', 'daily_active_users', 'overall_conversion_rate']
+            for col in numeric_columns:
+                if col in daily_df_preview.columns:
+                    daily_df_preview[col] = pd.to_numeric(daily_df_preview[col], errors='coerce')
+            
             # Convert to native Python numbers to avoid type issues
             total_views = float(daily_df_preview['total_events'].sum())
             total_carts_col = daily_df_preview.get('total_carts', pd.Series([0]))
@@ -536,6 +542,12 @@ if selected_page == "Overview":
         daily_df = repo.get_daily_metrics(days_filter)
         
         if not daily_df.empty:
+            # Convert all numeric columns to proper numeric types
+            numeric_columns = ['total_revenue', 'total_events', 'total_purchases', 'total_carts', 'daily_active_users', 'overall_conversion_rate']
+            for col in numeric_columns:
+                if col in daily_df.columns:
+                    daily_df[col] = pd.to_numeric(daily_df[col], errors='coerce')
+            
             # Revenue trend
             fig_revenue = px.line(daily_df, x='full_date', y='total_revenue',
                                  title='Daily Revenue',
@@ -578,6 +590,11 @@ elif selected_page == "Products":
         products_df = repo.get_top_products(20)  # Get more products
         
         if not products_df.empty:
+            # Convert all numeric columns to proper numeric types
+            numeric_columns = ['total_revenue', 'total_quantity_sold', 'total_purchases', 'avg_price']
+            for col in numeric_columns:
+                if col in products_df.columns:
+                    products_df[col] = pd.to_numeric(products_df[col], errors='coerce')
             col1, col2 = st.columns([2, 1])
             
             with col1:
@@ -663,6 +680,12 @@ elif selected_page == "Categories":
         categories_df = repo.get_category_performance()
         
         if not categories_df.empty:
+            # Convert all numeric columns to proper numeric types
+            numeric_columns = ['total_revenue', 'total_purchases', 'avg_order_value', 'total_quantity']
+            for col in numeric_columns:
+                if col in categories_df.columns:
+                    categories_df[col] = pd.to_numeric(categories_df[col], errors='coerce')
+            
             # Top row: Key metrics
             col1, col2, col3 = st.columns(3)
             with col1:
