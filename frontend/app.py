@@ -507,20 +507,25 @@ if selected_page == "Overview":
             numeric_columns = ['total_revenue', 'total_events', 'total_purchases', 'total_carts', 'daily_active_users', 'overall_conversion_rate']
             for col in numeric_columns:
                 if col in daily_df_preview.columns:
-                    daily_df_preview[col] = pd.to_numeric(daily_df_preview[col], errors='coerce')
+                    daily_df_preview[col] = pd.to_numeric(daily_df_preview[col], errors='coerce').fillna(0)
             
-            # Convert to native Python numbers to avoid type issues
+            # Convert to native Python numbers with safety checks
             total_views = float(daily_df_preview['total_events'].sum())
+            total_views = 0 if pd.isna(total_views) or total_views == float('inf') else max(0, total_views)
+            
             total_carts_col = daily_df_preview.get('total_carts', pd.Series([0]))
             total_carts = float(total_carts_col.sum()) if len(total_carts_col) > 0 else 0.0
+            total_carts = 0 if pd.isna(total_carts) or total_carts == float('inf') else max(0, total_carts)
+            
             total_purchases_funnel = float(daily_df_preview['total_purchases'].sum())
+            total_purchases_funnel = 0 if pd.isna(total_purchases_funnel) or total_purchases_funnel == float('inf') else max(0, total_purchases_funnel)
             
             # Use actual cart data if available, else estimate
             cart_count = total_carts if total_carts > 0 else total_views * 0.3
             
             funnel_data = pd.DataFrame({
                 'Stage': ['Views', 'Add to Cart', 'Purchase'],
-                'Count': [int(total_views), int(cart_count), int(total_purchases_funnel)],
+                'Count': [max(1, int(total_views)), max(1, int(cart_count)), max(1, int(total_purchases_funnel))],
                 'Conversion': ['100%', 
                               f"{(cart_count/total_views*100) if total_views > 0 else 30:.1f}%",
                               f"{(total_purchases_funnel/total_views*100) if total_views > 0 else 5:.1f}%"]
@@ -533,6 +538,8 @@ if selected_page == "Overview":
                                   color='Stage',
                                   color_discrete_sequence=['#636EFA', '#EF553B', '#00CC96'])
             fig_funnel.update_traces(textposition='inside', textfont_size=14)
+            fig_funnel.update_xaxes(tickformat=',.0f')  # Format numbers with commas, no decimals
+            fig_funnel.update_layout(xaxis_title='User Count', height=450)
             st.plotly_chart(fig_funnel, use_container_width=True)
         
         
@@ -546,7 +553,7 @@ if selected_page == "Overview":
             numeric_columns = ['total_revenue', 'total_events', 'total_purchases', 'total_carts', 'daily_active_users', 'overall_conversion_rate']
             for col in numeric_columns:
                 if col in daily_df.columns:
-                    daily_df[col] = pd.to_numeric(daily_df[col], errors='coerce')
+                    daily_df[col] = pd.to_numeric(daily_df[col], errors='coerce').fillna(0)
             
             # Revenue trend
             fig_revenue = px.line(daily_df, x='full_date', y='total_revenue',
@@ -684,7 +691,7 @@ elif selected_page == "Categories":
             numeric_columns = ['total_revenue', 'total_purchases', 'avg_order_value', 'total_quantity']
             for col in numeric_columns:
                 if col in categories_df.columns:
-                    categories_df[col] = pd.to_numeric(categories_df[col], errors='coerce')
+                    categories_df[col] = pd.to_numeric(categories_df[col], errors='coerce').fillna(0)
             
             # Top row: Key metrics
             col1, col2, col3 = st.columns(3)
