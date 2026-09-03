@@ -1,8 +1,12 @@
 # Product Analytics Platform
 
-A production-grade data platform demonstrating how technology companies transform raw user events into business metrics and analytics.
+🚀 **[Live Demo](https://your-streamlit-app-url.streamlit.app)** (Add your Streamlit Cloud URL here)
 
-Built on Databricks with Delta Lake, implementing medallion architecture (Bronze → Silver → Gold) with proper dimensional modeling and SCD Type 2.
+A production-grade lakehouse platform demonstrating end-to-end data engineering: from raw event ingestion through real-time streaming to interactive analytics dashboards.
+
+**Built with:** Databricks Delta Lake + Kafka Streaming + Streamlit
+
+**Architecture:** Medallion (Bronze → Silver → Gold) + Real-time Processing + Interactive Dashboard
 
 ---
 
@@ -133,20 +137,31 @@ ORDER BY revenue DESC;
 product-analytics-platform/
 │
 ├── config/
-│   └── platform_config.py              # Platform configuration
+│   ├── platform_config.py          # Databricks workspace configuration
+│   └── logging_config.py           # Production logging setup
 │
-├── notebooks/
-│   ├── ingestion/
-│   │   └── kaggle_data_ingestion.py    # Kaggle dataset ingestion
-│   ├── bronze/
-│   │   └── bronze_events_ingestion.py  # Bronze layer creation
-│   ├── silver/
-│   │   ├── silver_dimensions_build.py        # Initial dimension build
-│   │   └── silver_dimensions_incremental.py  # SCD Type 2 updates
-│   ├── gold/                           # (planned)
-│   └── analysis/                       # (planned)
+├── bronze/
+│   ├── kaggle_ingestion.py         # Initial Kaggle dataset load
+│   └── bronze_layer_build.py       # Bronze Delta table creation
 │
-├── pipelines/                          # (planned - dbt models)
+├── silver/
+│   ├── silver_dimensions_build.py  # Star schema dimensions
+│   └── silver_fact_build.py        # Fact table with SCD Type 2
+│
+├── gold/
+│   ├── gold_daily_metrics.py       # DAU, conversion, revenue aggregates
+│   ├── gold_product_performance.py # Product/brand analytics
+│   └── gold_category_performance.py # Category metrics
+│
+├── streaming/
+│   ├── kafka_producer.py           # Event producer (Confluent Cloud)
+│   └── kafka_consumer.py           # Spark Structured Streaming consumer
+│
+├── frontend/
+│   ├── app.py                      # Streamlit analytics dashboard
+│   ├── data_repository.py          # Data access layer
+│   └── requirements.txt            # Python dependencies
+│
 ├── docs/
 │   ├── SILVER_LAYER_ARCHITECTURE.md
 │   └── DIMENSIONS_COMPLETE_GUIDE.md
@@ -181,28 +196,41 @@ Users are classified based on behavior:
 
 ## What's Next
 
-**Gold Layer:**
-- Pre-aggregated metrics (DAU, WAU, MAU)
-- Conversion funnel analysis
-- Cohort retention tables
-- Product performance dashboards
+**Advanced Analytics & ML:**
+- Demand forecasting (Prophet time series)
+- Customer lifetime value prediction (MLflow + Feature Store)
+- Churn prediction with real-time scoring
+- Product recommendation engine (collaborative filtering)
+- A/B testing framework infrastructure
 
-**Advanced Analytics:**
-- Customer lifetime value
-- Churn prediction
-- Product recommendation
-- A/B testing framework
+**Infrastructure:**
+- CI/CD pipeline (GitHub Actions)
+- Data quality monitoring
+- Automated testing suite
+- Cost optimization (cluster autoscaling)
 
 ---
 
 ## Technologies
 
-- **Platform**: Databricks on AWS
-- **Storage**: Delta Lake (Unity Catalog)
-- **Compute**: Spark (Serverless)
-- **Language**: Python, SQL
-- **Architecture**: Medallion (Bronze/Silver/Gold)
-- **Modeling**: Kimball star schema, SCD Type 2
+**Data Platform:**
+- **Lakehouse**: Databricks Workspace (cloud-hosted)
+- **Storage**: Delta Lake with Unity Catalog
+- **Compute**: Apache Spark (Serverless)
+- **Streaming**: Kafka (Confluent Cloud) + Spark Structured Streaming
+
+**Development:**
+- **Languages**: Python, SQL
+- **Dashboard**: Streamlit (deployed on Streamlit Cloud)
+- **Version Control**: Git + GitHub
+- **Logging**: Python logging with production-grade configuration
+
+**Architecture:**
+- **Pattern**: Medallion Architecture (Bronze/Silver/Gold)
+- **Data Modeling**: Kimball star schema with SCD Type 2
+- **Processing**: Batch + Real-time streaming
+
+**Note:** Databricks workspace runs on cloud infrastructure (AWS backend in this case), but the platform abstracts infrastructure management - no direct AWS provisioning required.
 
 ---
 
@@ -225,14 +253,45 @@ Users are classified based on behavior:
 
 ---
 
-## Notes
+## Production Features
 
-This platform demonstrates production data engineering practices:
-- Proper dimensional modeling (Kimball methodology)
-- SCD Type 2 for slowly changing dimensions
-- Surrogate key management
-- Delta Lake best practices
-- Star schema for BI/analytics
-- Incremental processing frameworks
+This platform demonstrates end-to-end data engineering best practices:
 
-Built to showcase end-to-end data engineering capabilities, from raw ingestion through dimensional modeling to analytics-ready data marts.
+**Data Modeling:**
+- Kimball dimensional modeling (star schema)
+- SCD Type 2 for historical tracking (products, users)
+- Surrogate key management for data integrity
+- Proper fact/dimension separation
+
+**Lakehouse Architecture:**
+- ACID transactions with Delta Lake
+- Time travel for data versioning
+- OPTIMIZE + Z-ORDER for query performance
+- Unified batch + streaming processing
+
+**Code Quality:**
+- Production-grade logging (centralized configuration)
+- Error handling and data validation
+- Modular code structure (separation of concerns)
+- Git version control
+
+**Deployment:**
+- Interactive dashboard deployed on Streamlit Cloud
+- Real-time streaming pipeline (Kafka → Databricks)
+- Scalable compute (Spark Serverless)
+
+---
+
+## Key Achievements
+
+**Scale:** 109.9M events | 5.3M users | 206K products | 426 days
+
+**Architecture:** Complete lakehouse platform with Bronze → Silver → Gold layers
+
+**Real-Time:** Kafka streaming integrated with batch processing
+
+**Production-Ready:** Deployed dashboard with proper logging, error handling, and data quality checks
+
+---
+
+Built to showcase comprehensive data engineering skills: from raw event ingestion through dimensional modeling to production analytics deployment.
