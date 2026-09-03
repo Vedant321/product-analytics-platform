@@ -12,10 +12,34 @@ A production-grade lakehouse platform demonstrating end-to-end data engineering:
 
 ## What's Built
 
-### Data Pipeline
-- **Bronze Layer**: Raw event storage (109.9M events) with append-only Delta tables
-- **Silver Layer**: Star schema with 4 dimensions + 1 fact table, SCD Type 2 for product/user history
-- **Source**: eCommerce behavior dataset (REES46) - views, cart events, purchases
+### 🟢 **Complete Lakehouse Platform**
+
+**1. Real-Time Streaming Pipeline**
+- Kafka producer ingesting e-commerce events (Confluent Cloud)
+- Structured Streaming consumer writing to Delta Lake
+- Bronze layer: 109.9M events with ACID guarantees
+
+**2. Medallion Architecture (Bronze → Silver → Gold)**
+- **Bronze**: Raw append-only event storage
+- **Silver**: Star schema with 4 dimensions (date, products, users, categories) + fact table
+  - SCD Type 2 for products and users (price/behavior tracking)
+  - Surrogate keys for dimensional integrity
+- **Gold**: Pre-aggregated business metrics
+  - Daily metrics (DAU, conversion rates, revenue)
+  - Product performance (top sellers, revenue by brand)
+  - Category performance (sales by category)
+
+**3. Interactive Analytics Dashboard (Streamlit)**
+- Overview: KPIs, conversion funnel, daily trends
+- Products: Top brands, revenue treemap, scatter analysis
+- Categories: Revenue distribution, AOV, purchases
+- Real-time data refresh from Gold layer
+- Deployed on Streamlit Cloud
+
+**4. Data Source**
+- eCommerce behavior dataset (REES46 via Kaggle)
+- 109.9M events | 5.3M users | 206K products | 426 days
+- Event types: view, cart, purchase
 
 ### Silver Layer Schema
 
