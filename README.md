@@ -1,7 +1,5 @@
 # Product Analytics Platform
 
-🚀 **[Live Demo](https://your-streamlit-app-url.streamlit.app)** (Add your Streamlit Cloud URL here)
-
 A production-grade lakehouse platform demonstrating end-to-end data engineering: from raw event ingestion through real-time streaming to interactive analytics dashboards.
 
 **Built with:** Databricks Delta Lake + Kafka Streaming + Streamlit
@@ -12,7 +10,7 @@ A production-grade lakehouse platform demonstrating end-to-end data engineering:
 
 ## What's Built
 
-### 🟢 **Complete Lakehouse Platform**
+### Complete Lakehouse Platform
 
 **1. Real-Time Streaming Pipeline**
 - Kafka producer ingesting e-commerce events (Confluent Cloud)
