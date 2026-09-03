@@ -88,7 +88,7 @@ dataset = "mkechinov/ecommerce-behavior-data-from-multi-category-store"
 temp_download_path = "/tmp/kaggle_download"
 os.makedirs(temp_download_path, exist_ok=True)
 
-logger.info("\n📥 Downloading dataset: {dataset}")
+logger.info("\nDownloading dataset: {dataset}")
 logger.info("Destination: {temp_download_path}")
 logger.info("\n⚠  This is a large dataset (~32GB). Download may take 10-20 minutes...\n")
 
@@ -179,7 +179,7 @@ for file in sorted(csv_files):
     total_size_gb += file_size_gb
     logger.info("  • {file:<50} {file_size_gb:>8.2f} GB")
 
-logger.info("\n💾 Total dataset size: {total_size_gb:.2f} GB")
+logger.info("\nTotal dataset size: {total_size_gb:.2f} GB")
 
 # Preview first file using pandas (small sample)
 if csv_files:

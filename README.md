@@ -12,10 +12,11 @@ A production-grade lakehouse platform demonstrating end-to-end data engineering:
 
 ### Complete Lakehouse Platform
 
-**1. Real-Time Streaming Pipeline**
-- Kafka producer ingesting e-commerce events (Confluent Cloud)
-- Structured Streaming consumer writing to Delta Lake
-- Bronze layer: 109.9M events with ACID guarantees
+**1. Batch + Streaming Pipeline (Lambda Architecture)**
+- Bronze layer: Unified table for both batch and streaming ingestion
+- Batch: 109.9M events loaded from Kaggle CSV (source='batch')
+- Streaming: Kafka setup ready (Confluent Cloud integration)
+- Lambda Architecture: Single bronze_events table with source tracking
 
 **2. Medallion Architecture (Bronze → Silver → Gold)**
 - **Bronze**: Raw append-only event storage
@@ -176,8 +177,8 @@ product-analytics-platform/
 │   └── gold_category_performance.py # Category metrics
 │
 ├── streaming/
-│   ├── kafka_producer.py           # Event producer (Confluent Cloud)
-│   └── kafka_consumer.py           # Spark Structured Streaming consumer
+│   ├── kafka_event_producer.py     # Event producer (writes to staging table)
+│   └── kafka_event_consumer.py     # Consumer (writes to unified bronze_events)
 │
 ├── frontend/
 │   ├── app.py                      # Streamlit analytics dashboard
@@ -289,7 +290,9 @@ This platform demonstrates end-to-end data engineering best practices:
 - ACID transactions with Delta Lake
 - Time travel for data versioning
 - OPTIMIZE + Z-ORDER for query performance
-- Unified batch + streaming processing
+- Lambda Architecture: Unified bronze layer (batch + streaming)
+- Bronze contains raw natural keys only (product_id, user_id, category_id)
+- Enrichment with surrogate keys happens in Silver layer
 
 **Code Quality:**
 - Production-grade logging (centralized configuration)
@@ -299,7 +302,7 @@ This platform demonstrates end-to-end data engineering best practices:
 
 **Deployment:**
 - Interactive dashboard deployed on Streamlit Cloud
-- Real-time streaming pipeline (Kafka → Databricks)
+- Streaming infrastructure ready (Kafka integration setup)
 - Scalable compute (Spark Serverless)
 
 ---
@@ -310,7 +313,7 @@ This platform demonstrates end-to-end data engineering best practices:
 
 **Architecture:** Complete lakehouse platform with Bronze → Silver → Gold layers
 
-**Real-Time:** Kafka streaming integrated with batch processing
+**Lambda Architecture:** Unified bronze layer supporting both batch and streaming ingestion
 
 **Production-Ready:** Deployed dashboard with proper logging, error handling, and data quality checks
 

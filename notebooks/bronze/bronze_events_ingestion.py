@@ -158,10 +158,10 @@ end_time = time.time()
 duration = end_time - start_time
 
 logger.info("\n Delta table created successfully!")
-logger.info("   ⏱  Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
+logger.info("Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
 logger.info("    Table: {table_name}")
 logger.info("   🗂  Partitions: {partition_stats.count()}")
-logger.info("\n🎉 CSV files now have a BRAIN (Delta Lake format)!")
+logger.info("\nCSV files successfully converted to Delta Lake format")
 
 # COMMAND ----------
 
@@ -243,7 +243,7 @@ result = spark.sql(f"""
     ORDER BY event_count DESC
 """).show()
 
-logger.info("\n🎉 SQL queries work perfectly!")
+logger.info("\nSQL queries validated successfully")
 logger.info("   Notice how fast the date filter query was?")
 logger.info("   That's partition pruning in action!")
 
@@ -317,7 +317,7 @@ logger.info("\n📂 Table Location:")
 logger.info("   {location}")
 
 # Get storage stats
-logger.info("\n💾 Storage Statistics:")
+logger.info("\nStorage Statistics:")
 spark.sql(f"DESCRIBE DETAIL {table_name}").select(
     "numFiles",
     "sizeInBytes",
@@ -325,7 +325,7 @@ spark.sql(f"DESCRIBE DETAIL {table_name}").select(
 ).show(truncate=False)
 
 # Optimize table (compact small files)
-logger.info("\n🔧 Optimizing table (compacting files)...")
+logger.info("\nOptimizing table (compacting files)...")
 spark.sql(f"OPTIMIZE {table_name}")
 logger.info(" Table optimized!")
 
@@ -334,7 +334,7 @@ logger.info("\n Collecting statistics...")
 spark.sql(f"ANALYZE TABLE {table_name} COMPUTE STATISTICS")
 logger.info(" Statistics collected!")
 
-logger.info("\n🎉 Bronze layer is production-ready!")
+logger.info("\nBronze layer ingestion complete")
 
 # COMMAND ----------
 

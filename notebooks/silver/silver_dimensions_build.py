@@ -232,7 +232,7 @@ logger.info("   Data range: {min_date} to {max_date}")
 start_date = datetime.strptime(str(min_date), '%Y-%m-%d')
 end_date = datetime.strptime(str(max_date), '%Y-%m-%d') + timedelta(days=365)
 
-logger.info("\n🔧 Step 2: Generate calendar with 1-year buffer...")
+logger.info("\nStep 2: Generate calendar with 1-year buffer...")
 logger.info("   Calendar range: {start_date.date()} to {end_date.date()}")
 logger.info("   Why buffer? Allows for future-dated analysis without rebuilding")
 
@@ -295,7 +295,7 @@ df_date = spark.createDataFrame(date_list, schema=date_schema)
 logger.info("\n Step 3: Preview dim_date:")
 df_date.orderBy("date_key").show(10)
 
-logger.info("\n💾 Step 4: Write to Delta table...")
+logger.info("\nStep 4: Write to Delta table...")
 date_table = "product_analytics.ecommerce.silver_dim_date"
 
 df_date.write.format("delta") \
@@ -373,7 +373,7 @@ df_categories_raw = spark.table(bronze_table).select("category_code").distinct()
 logger.info("   Unique category_code values: {df_categories_raw.count():,}")
 
 # Split category hierarchy into levels
-logger.info("\n🔧 Step 2: Split hierarchy into L1, L2, L3...")
+logger.info("\nStep 2: Split hierarchy into L1, L2, L3...")
 
 df_categories_split = df_categories_raw \
     .withColumn("category_split", F.split("category_code", "\\.")) \
@@ -438,7 +438,7 @@ df_categories_final.orderBy("category_sk").show(10, truncate=False)
 logger.info("\n Category depth distribution:")
 df_categories_final.groupBy("category_depth").count().orderBy("category_depth").show()
 
-logger.info("\n💾 Step 6: Write to Delta table...")
+logger.info("\nStep 6: Write to Delta table...")
 category_table = "product_analytics.ecommerce.silver_dim_categories"
 
 df_categories_final.write.format("delta") \
@@ -619,7 +619,7 @@ df_products_latest = spark.table(bronze_table) \
 product_count = df_products_latest.count()
 logger.info("   Found {product_count:,} unique products in Bronze")
 
-logger.info("\n🔧 Step 2: Enrich with category surrogate keys...")
+logger.info("\nStep 2: Enrich with category surrogate keys...")
 
 # Join with dim_categories to get category_sk
 df_categories = spark.table("product_analytics.ecommerce.silver_dim_categories")
@@ -710,7 +710,7 @@ logger.info("\n Sample products with multiple versions (after future updates):")
 logger.info("   (Right now all products are version 1 - we'll add versioning logic later)")
 df_products_final.filter(F.col("version_number") > 1).show(5, truncate=False)
 
-logger.info("\n💾 Step 7: Write to Delta table...")
+logger.info("\nStep 7: Write to Delta table...")
 product_table = "product_analytics.ecommerce.silver_dim_products"
 
 df_products_final.write.format("delta") \
@@ -943,7 +943,7 @@ logger.info("   Generated {df_users_final.count():,} surrogate keys")
 logger.info("\n Step 5: Preview dim_users:")
 df_users_final.orderBy(F.desc("total_events")).show(10, truncate=False)
 
-logger.info("\n💾 Step 6: Write to Delta table...")
+logger.info("\nStep 6: Write to Delta table...")
 user_table = "product_analytics.ecommerce.silver_dim_users"
 
 df_users_final.write.format("delta") \
@@ -1335,7 +1335,7 @@ df_fact_events.groupBy("event_type") \
     .orderBy(F.desc("event_count")) \
     .show()
 
-logger.info("\n💾 Step 7: Write to Delta table...")
+logger.info("\nStep 7: Write to Delta table...")
 logger.info("   🔑 Delta Feature: ACID Transaction (all or nothing write)")
 
 fact_table = "product_analytics.ecommerce.fact_events"
@@ -1351,7 +1351,7 @@ logger.info("\n fact_events created!")
 logger.info("   Table: {fact_table}")
 logger.info("   Rows: {df_fact_events.count():,}")
 
-logger.info("\n🎉 STAR SCHEMA COMPLETE!")
+logger.info("\nStar schema build complete")
 logger.info("    dim_date ({spark.table('product_analytics.ecommerce.silver_dim_date').count():,} rows)")
 logger.info("    dim_categories ({spark.table('product_analytics.ecommerce.silver_dim_categories').count():,} rows)")
 logger.info("    dim_products ({spark.table('product_analytics.ecommerce.silver_dim_products').count():,} rows)")
@@ -1500,7 +1500,7 @@ Traditional databases charge extra for this feature or don't offer it at all."
 print("="*80)
 logger.info("DELTA FEATURE #2: TIME TRAVEL")
 print("="*80)
-logger.info("\n⏱ Query historical versions of any table!\n")
+logger.info("\nQuery historical versions of any table\n")
 
 # Show version history
 logger.info("📜 Version History for fact_events:")
@@ -1810,7 +1810,7 @@ SAMPLE QUERIES - DEMONSTRATE THE VALUE!
 """
 
 print("="*80)
-logger.info("🎉 STAR SCHEMA COMPLETE - READY FOR ANALYTICS!")
+logger.info("Star schema build complete - ready for analytics")
 print("="*80)
 
 logger.info("\n Table Summary:")
