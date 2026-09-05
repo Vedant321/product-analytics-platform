@@ -661,7 +661,7 @@ elif selected_page == "Products":
                                            'total_revenue': 'Revenue (USD)'},
                                     color='total_revenue',
                                     color_continuous_scale='Viridis')
-            st.plotly_chart(fig_scatter, use_container_width=True)
+                st.plotly_chart(fig_scatter, use_container_width=True)
             
             # Data table
             st.markdown("### 📋 Detailed Product Table")
