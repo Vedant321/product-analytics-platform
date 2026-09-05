@@ -12,11 +12,11 @@ A production-grade lakehouse platform demonstrating end-to-end data engineering:
 
 ### Complete Lakehouse Platform
 
-**1. Batch + Streaming Pipeline (Lambda Architecture)**
+**1. Hybrid Ingestion Pipeline (Batch + Streaming)**
 - Bronze layer: Unified table for both batch and streaming ingestion
 - Batch: 109.9M events loaded from Kaggle CSV (source='batch')
 - Streaming: Kafka setup ready (Confluent Cloud integration)
-- Lambda Architecture: Single bronze_events table with source tracking
+- Unified Processing: Both sources flow through the same medallion transformation path
 
 **2. Medallion Architecture (Bronze → Silver → Gold)**
 - **Bronze**: Raw append-only event storage
@@ -249,9 +249,10 @@ Users are classified based on behavior:
 - **Logging**: Python logging with production-grade configuration
 
 **Architecture:**
-- **Pattern**: Medallion Architecture (Bronze/Silver/Gold)
+- **Pattern**: Medallion Architecture (Bronze/Silver/Gold) with hybrid ingestion
 - **Data Modeling**: Kimball star schema with SCD Type 2
-- **Processing**: Batch + Real-time streaming
+- **Processing**: Unified transformation path for both batch and streaming sources
+- **Note**: This is NOT Lambda Architecture - both batch and streaming flow through the same transformation logic (no separate batch/speed layers)
 
 **Note:** Databricks workspace runs on cloud infrastructure (AWS backend in this case), but the platform abstracts infrastructure management - no direct AWS provisioning required.
 
@@ -311,9 +312,9 @@ This platform demonstrates end-to-end data engineering best practices:
 
 **Scale:** 109.9M events | 5.3M users | 206K products | 426 days
 
-**Architecture:** Complete lakehouse platform with Bronze → Silver → Gold layers
+**Architecture:** Complete medallion lakehouse (Bronze → Silver → Gold)
 
-**Lambda Architecture:** Unified bronze layer supporting both batch and streaming ingestion
+**Hybrid Ingestion:** Unified pipeline supporting both batch CSV and streaming Kafka sources
 
 **Production-Ready:** Deployed dashboard with proper logging, error handling, and data quality checks
 
