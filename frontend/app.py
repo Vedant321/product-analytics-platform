@@ -404,15 +404,16 @@ class MetricsRepository:
     
     @st.cache_data(ttl=300)
     def get_category_performance(_self):
-        """Get category performance metrics"""
+        """Get category performance metrics - aggregated by L1 category"""
         query = f"""
         SELECT 
             category_l1 as category_name,
-            CAST(total_revenue AS DOUBLE) as total_revenue,
-            total_purchases,
-            CAST(avg_revenue_per_purchase AS DOUBLE) as avg_order_value
+            CAST(SUM(total_revenue) AS DOUBLE) as total_revenue,
+            SUM(total_purchases) as total_purchases,
+            CAST(AVG(avg_revenue_per_purchase) AS DOUBLE) as avg_order_value
         FROM {_self.catalog}.{_self.schema}.gold_category_performance
         WHERE category_l1 IS NOT NULL
+        GROUP BY category_l1
         ORDER BY total_revenue DESC
         """
         return _self._execute_query(query)
