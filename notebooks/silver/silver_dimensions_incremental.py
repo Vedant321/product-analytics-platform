@@ -4,6 +4,145 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution Across All Layers
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 1: Check brand distribution in BRONZE layer
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Bronze Layer' as layer,
+# MAGIC     LOWER(TRIM(brand)) as brand_normalized,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     COUNT(*) as total_events
+# MAGIC FROM product_analytics.ecommerce.bronze_events
+# MAGIC WHERE brand IS NOT NULL
+# MAGIC GROUP BY LOWER(TRIM(brand))
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 25;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution in SILVER Layer
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 2: Check brand distribution in SILVER dim_products
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Silver Layer' as layer,
+# MAGIC     brand,
+# MAGIC     is_current_version,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     COUNT(*) as total_versions
+# MAGIC FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC GROUP BY brand, is_current_version
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 25;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution in GOLD Layer
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 3: Check brand distribution in GOLD product_performance
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Gold Layer' as layer,
+# MAGIC     brand,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     SUM(total_views) as total_views,
+# MAGIC     SUM(total_purchases) as total_purchases,
+# MAGIC     ROUND(SUM(total_revenue), 2) as total_revenue
+# MAGIC FROM product_analytics.ecommerce.gold_product_performance
+# MAGIC GROUP BY brand
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 25;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 INVESTIGATION: Cross-Layer Brand Comparison
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 4: Compare brand coverage across layers
+# MAGIC -- ============================================================================
+# MAGIC WITH bronze_brands AS (
+# MAGIC     SELECT DISTINCT LOWER(TRIM(brand)) as brand
+# MAGIC     FROM product_analytics.ecommerce.bronze_events
+# MAGIC     WHERE brand IS NOT NULL
+# MAGIC ),
+# MAGIC silver_brands AS (
+# MAGIC     SELECT DISTINCT brand
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC ),
+# MAGIC gold_brands AS (
+# MAGIC     SELECT DISTINCT brand
+# MAGIC     FROM product_analytics.ecommerce.gold_product_performance
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     COALESCE(b.brand, s.brand, g.brand) as brand,
+# MAGIC     CASE WHEN b.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_bronze,
+# MAGIC     CASE WHEN s.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_silver,
+# MAGIC     CASE WHEN g.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_gold
+# MAGIC FROM bronze_brands b
+# MAGIC FULL OUTER JOIN silver_brands s ON b.brand = s.brand
+# MAGIC FULL OUTER JOIN gold_brands g ON COALESCE(b.brand, s.brand) = g.brand
+# MAGIC ORDER BY brand
+# MAGIC LIMIT 50;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 INVESTIGATION: Check fact_events to silver_dim_products JOIN
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 5: Check if fact_events has orphaned product_sk values
+# MAGIC -- (product_sk values in fact_events that don't exist in silver_dim_products)
+# MAGIC -- ============================================================================
+# MAGIC WITH fact_product_sks AS (
+# MAGIC     SELECT DISTINCT product_sk
+# MAGIC     FROM product_analytics.ecommerce.fact_events
+# MAGIC     WHERE product_sk IS NOT NULL
+# MAGIC ),
+# MAGIC dim_product_sks AS (
+# MAGIC     SELECT DISTINCT product_sk
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     COUNT(DISTINCT f.product_sk) as total_distinct_product_sks_in_facts,
+# MAGIC     COUNT(DISTINCT d.product_sk) as matched_in_dim_products,
+# MAGIC     COUNT(DISTINCT f.product_sk) - COUNT(DISTINCT d.product_sk) as orphaned_product_sks
+# MAGIC FROM fact_product_sks f
+# MAGIC LEFT JOIN dim_product_sks d ON f.product_sk = d.product_sk;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 INVESTIGATION: Sample Orphaned Products (if any)
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- DIAGNOSTIC QUERY 6: Show sample orphaned products
+# MAGIC -- ============================================================================
+# MAGIC WITH fact_product_sks AS (
+# MAGIC     SELECT DISTINCT f.product_sk, f.product_id
+# MAGIC     FROM product_analytics.ecommerce.fact_events f
+# MAGIC     WHERE f.product_sk IS NOT NULL
+# MAGIC ),
+# MAGIC dim_current_products AS (
+# MAGIC     SELECT product_sk, product_id, brand
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     f.product_sk,
+# MAGIC     f.product_id,
+# MAGIC     d.brand,
+# MAGIC     CASE WHEN d.product_sk IS NULL THEN 'ORPHANED (Missing from dim_products)' ELSE 'OK' END as status
+# MAGIC FROM fact_product_sks f
+# MAGIC LEFT JOIN dim_current_products d ON f.product_sk = d.product_sk
+# MAGIC WHERE d.product_sk IS NULL
+# MAGIC LIMIT 20;
+
+# COMMAND ----------
+
 # DBTITLE 1,Setup: Load Config and Read Current Dimension State
 """
 STEP 1: SETUP

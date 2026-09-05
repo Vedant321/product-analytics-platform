@@ -2297,3 +2297,183 @@ print()
 print("="*80)
 logger.info("NEXT: We'll build INCREMENTAL SCD Type 2 processing with proper SK extension")
 print("="*80)
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 1: Brand Distribution in Bronze Layer
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- Check which brands exist in the raw Bronze data
+# MAGIC -- This shows us the "ground truth" - all brands in the source data
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Bronze Layer' as layer,
+# MAGIC     LOWER(TRIM(brand)) as brand_normalized,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     COUNT(*) as total_events
+# MAGIC FROM product_analytics.ecommerce.bronze_events
+# MAGIC WHERE brand IS NOT NULL
+# MAGIC GROUP BY LOWER(TRIM(brand))
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 30;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 2: Brand Distribution in Silver Layer
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- Check which brands made it to Silver dim_products
+# MAGIC -- We check both current and historical versions
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Silver Layer' as layer,
+# MAGIC     brand,
+# MAGIC     is_current_version,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     COUNT(*) as total_versions
+# MAGIC FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC GROUP BY brand, is_current_version
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 30;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 3: Brand Distribution in Gold Layer
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- Check which brands appear in the Gold product_performance table
+# MAGIC -- This is what the dashboard sees!
+# MAGIC -- ============================================================================
+# MAGIC SELECT 
+# MAGIC     'Gold Layer' as layer,
+# MAGIC     brand,
+# MAGIC     COUNT(DISTINCT product_id) as unique_products,
+# MAGIC     SUM(total_views) as total_views,
+# MAGIC     SUM(total_purchases) as total_purchases,
+# MAGIC     ROUND(SUM(total_revenue), 2) as total_revenue
+# MAGIC FROM product_analytics.ecommerce.gold_product_performance
+# MAGIC GROUP BY brand
+# MAGIC ORDER BY unique_products DESC
+# MAGIC LIMIT 30;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 4: Cross-Layer Brand Coverage Comparison
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- Compare which brands exist in each layer
+# MAGIC -- This will show us WHERE brands are getting lost!
+# MAGIC -- ============================================================================
+# MAGIC WITH bronze_brands AS (
+# MAGIC     SELECT DISTINCT LOWER(TRIM(brand)) as brand
+# MAGIC     FROM product_analytics.ecommerce.bronze_events
+# MAGIC     WHERE brand IS NOT NULL
+# MAGIC ),
+# MAGIC silver_brands AS (
+# MAGIC     SELECT DISTINCT brand
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC ),
+# MAGIC gold_brands AS (
+# MAGIC     SELECT DISTINCT brand
+# MAGIC     FROM product_analytics.ecommerce.gold_product_performance
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     COALESCE(b.brand, s.brand, g.brand) as brand,
+# MAGIC     CASE WHEN b.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_bronze,
+# MAGIC     CASE WHEN s.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_silver,
+# MAGIC     CASE WHEN g.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_gold,
+# MAGIC     -- Show where the brand drops off
+# MAGIC     CASE 
+# MAGIC         WHEN g.brand IS NOT NULL THEN '✅ All layers'
+# MAGIC         WHEN s.brand IS NOT NULL THEN '⚠️ Lost in Gold'
+# MAGIC         WHEN b.brand IS NOT NULL THEN '⚠️ Lost in Silver'
+# MAGIC         ELSE '❌ Unknown'
+# MAGIC     END as status
+# MAGIC FROM bronze_brands b
+# MAGIC FULL OUTER JOIN silver_brands s ON b.brand = s.brand
+# MAGIC FULL OUTER JOIN gold_brands g ON COALESCE(b.brand, s.brand) = g.brand
+# MAGIC ORDER BY 
+# MAGIC     CASE 
+# MAGIC         WHEN g.brand IS NULL AND s.brand IS NOT NULL THEN 1  -- Lost in Gold (most interesting)
+# MAGIC         WHEN s.brand IS NULL AND b.brand IS NOT NULL THEN 2  -- Lost in Silver
+# MAGIC         ELSE 3  -- Present everywhere
+# MAGIC     END,
+# MAGIC     brand
+# MAGIC LIMIT 50;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 5: Check for Orphaned product_sk in fact_events
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- CRITICAL CHECK: Are there product_sk values in fact_events that don't 
+# MAGIC -- exist in silver_dim_products?
+# MAGIC -- This would cause the Gold layer JOIN to drop rows!
+# MAGIC -- ============================================================================
+# MAGIC WITH fact_product_sks AS (
+# MAGIC     SELECT DISTINCT product_sk
+# MAGIC     FROM product_analytics.ecommerce.fact_events
+# MAGIC     WHERE product_sk IS NOT NULL
+# MAGIC ),
+# MAGIC dim_current_products AS (
+# MAGIC     SELECT DISTINCT product_sk
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC ),
+# MAGIC dim_all_products AS (
+# MAGIC     SELECT DISTINCT product_sk
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     COUNT(DISTINCT f.product_sk) as total_product_sks_in_fact_events,
+# MAGIC     COUNT(DISTINCT dc.product_sk) as matched_in_current_versions,
+# MAGIC     COUNT(DISTINCT da.product_sk) as matched_in_any_version,
+# MAGIC     COUNT(DISTINCT f.product_sk) - COUNT(DISTINCT dc.product_sk) as orphaned_from_current,
+# MAGIC     COUNT(DISTINCT f.product_sk) - COUNT(DISTINCT da.product_sk) as orphaned_from_all,
+# MAGIC     -- Show the percentage
+# MAGIC     ROUND(100.0 * (COUNT(DISTINCT f.product_sk) - COUNT(DISTINCT dc.product_sk)) / COUNT(DISTINCT f.product_sk), 2) as pct_orphaned_from_current
+# MAGIC FROM fact_product_sks f
+# MAGIC LEFT JOIN dim_current_products dc ON f.product_sk = dc.product_sk
+# MAGIC LEFT JOIN dim_all_products da ON f.product_sk = da.product_sk;
+
+# COMMAND ----------
+
+# DBTITLE 1,🔍 DIAGNOSTIC 6: Sample Orphaned Products (if any exist)
+# MAGIC %sql
+# MAGIC -- ============================================================================
+# MAGIC -- Show specific examples of orphaned products
+# MAGIC -- These are events that won't appear in Gold because their product_sk
+# MAGIC -- doesn't match any current version in dim_products
+# MAGIC -- ============================================================================
+# MAGIC WITH fact_sample AS (
+# MAGIC     SELECT DISTINCT 
+# MAGIC         f.product_sk,
+# MAGIC         f.product_id,
+# MAGIC         COUNT(*) as event_count
+# MAGIC     FROM product_analytics.ecommerce.fact_events f
+# MAGIC     GROUP BY f.product_sk, f.product_id
+# MAGIC ),
+# MAGIC dim_current AS (
+# MAGIC     SELECT 
+# MAGIC         product_sk, 
+# MAGIC         product_id, 
+# MAGIC         brand,
+# MAGIC         is_current_version
+# MAGIC     FROM product_analytics.ecommerce.silver_dim_products
+# MAGIC     WHERE is_current_version = TRUE
+# MAGIC )
+# MAGIC SELECT 
+# MAGIC     f.product_sk,
+# MAGIC     f.product_id,
+# MAGIC     f.event_count,
+# MAGIC     d.brand,
+# MAGIC     CASE 
+# MAGIC         WHEN d.product_sk IS NULL THEN '❌ ORPHANED - Missing from dim_products current versions'
+# MAGIC         ELSE '✅ OK'
+# MAGIC     END as status
+# MAGIC FROM fact_sample f
+# MAGIC LEFT JOIN dim_current d ON f.product_sk = d.product_sk
+# MAGIC WHERE d.product_sk IS NULL  -- Only show orphaned ones
+# MAGIC ORDER BY f.event_count DESC
+# MAGIC LIMIT 20;

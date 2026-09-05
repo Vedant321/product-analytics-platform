@@ -387,15 +387,16 @@ class MetricsRepository:
     
     @st.cache_data(ttl=300)
     def get_top_products(_self, limit=10):
-        """Get top products by revenue"""
+        """Get top products by revenue - aggregated by brand"""
         query = f"""
         SELECT 
             brand as product_name,
-            CAST(total_revenue AS DOUBLE) as total_revenue,
-            total_quantity_sold,
-            total_purchases
+            CAST(SUM(total_revenue) AS DOUBLE) as total_revenue,
+            SUM(total_quantity_sold) as total_quantity_sold,
+            SUM(total_purchases) as total_purchases
         FROM {_self.catalog}.{_self.schema}.gold_product_performance
         WHERE brand IS NOT NULL
+        GROUP BY brand
         ORDER BY total_revenue DESC
         LIMIT {limit}
         """
