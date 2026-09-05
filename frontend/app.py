@@ -533,7 +533,7 @@ if selected_page == "Overview":
                               f"{(total_purchases_funnel/total_views*100) if total_views > 0 else 5:.1f}%"]
             })
             
-            st.subheader("🎯 Conversion Funnel")
+            st.subheader("Conversion Funnel")
             fig_funnel = px.funnel(funnel_data, x='Count', y='Stage', 
                                   text='Conversion',
                                   title='User Journey: Views → Cart → Purchase',
@@ -774,7 +774,7 @@ elif selected_page == "Experimentation":
     st.info("⚡ Coming Soon: A/B test results, experiment metrics, and ML predictions")
     
     # Placeholder sections
-    with st.expander("🎯 Active Experiments"):
+    with st.expander("Active Experiments"):
         st.markdown("Track running A/B tests and their performance metrics")
     
     with st.expander("🤖 ML Models"):
