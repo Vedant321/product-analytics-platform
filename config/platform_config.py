@@ -4,11 +4,14 @@
 Product Analytics Platform - Central Configuration
 
 This module defines all configuration settings for the platform including:
-- Unity Catalog namespaces
-- Table definitions (Bronze, Silver, Gold)
-- Storage locations
-- Checkpoint paths
-- Environment settings
+- Unity Catalog namespaces (catalog, schema, volume)
+- Table definitions (Medallion Architecture with Star Schema)
+  * Bronze: Raw events (batch CSV + streaming Kafka)
+  * Silver: Star schema (fact_events + dimension tables with SCD Type 2)
+  * Gold: Pre-aggregated analytics tables
+- Storage locations and checkpoint paths
+- Streaming configuration (Kafka settings, trigger intervals)
+- Environment settings (optimization, retention)
 """
 
 import logging
@@ -42,27 +45,30 @@ class CatalogConfig:
 
 @dataclass
 class TableNames:
-    """Table naming configuration for all layers"""
+    """Table naming configuration for all layers - STAR SCHEMA ARCHITECTURE"""
     
-    # Bronze Layer - Raw Events
+    # Bronze Layer - Raw Events (from CSV batch load or Kafka streaming)
     bronze_events: str = "bronze_events"
     
-    # Silver Layer - Cleaned & Validated
-    silver_events_enriched: str = "silver_events_enriched"
-    silver_sessions_aggregated: str = "silver_sessions_aggregated"
-    silver_users: str = "silver_users"
+    # Silver Layer - Star Schema (Fact + Dimension Tables)
+    # Fact Table (110M+ rows)
+    fact_events: str = "fact_events"
     
-    # Gold Layer - Analytics Ready
+    # Dimension Tables (Silver layer with SCD Type 2)
+    silver_dim_date: str = "silver_dim_date"
+    silver_dim_products: str = "silver_dim_products"
+    silver_dim_categories: str = "silver_dim_categories"
+    silver_dim_users: str = "silver_dim_users"
+    
+    # Gold Layer - Pre-aggregated Analytics Tables
     gold_user_metrics: str = "gold_user_metrics"
-    gold_product_metrics: str = "gold_product_metrics"
-    gold_category_metrics: str = "gold_category_metrics"
+    gold_product_performance: str = "gold_product_performance"
+    gold_category_performance: str = "gold_category_performance"
     gold_funnel_metrics: str = "gold_funnel_metrics"
-    gold_daily_revenue: str = "gold_daily_revenue"
-    
-    # Dimension Tables
-    dim_products: str = "dim_products"
-    dim_categories: str = "dim_categories"
-    dim_users: str = "dim_users"
+    gold_daily_metrics: str = "gold_daily_metrics"
+    gold_session_metrics: str = "gold_session_metrics"
+    gold_brand_performance: str = "gold_brand_performance"
+    gold_cohort_analysis: str = "gold_cohort_analysis"
     
     def get_full_name(self, table_name: str, catalog_config: CatalogConfig) -> str:
         """Returns fully qualified table name"""
@@ -127,8 +133,10 @@ class EnvironmentConfig:
         if self.z_order_columns is None:
             self.z_order_columns = {
                 "bronze_events": ["event_time", "event_type"],
-                "silver_events": ["event_date", "user_id"],
-                "gold_user_metrics": ["metric_date", "user_id"]
+                "fact_events": ["event_time", "user_sk", "product_sk"],
+                "gold_user_metrics": ["user_sk"],
+                "gold_product_performance": ["product_sk"],
+                "gold_daily_metrics": ["metric_date"]
             }
 
 
@@ -151,13 +159,18 @@ class PlatformConfig:
         print("=" * 80)
         logger.info("PRODUCT ANALYTICS PLATFORM - CONFIGURATION")
         print("=" * 80)
-        logger.info("\nEnvironment: {self.environment.environment}")
-        logger.info("\nCatalog: {self.catalog.catalog}")
-        logger.info("Schema: {self.catalog.schema}")
-        logger.info("Volume Path: {self.catalog.volume_path}")
-        logger.info("\nBronze Checkpoint: {self.storage.bronze_checkpoint}")
-        logger.info("Silver Checkpoint: {self.storage.silver_checkpoint}")
-        logger.info("Gold Checkpoint: {self.storage.gold_checkpoint}")
+        logger.info(f"\nEnvironment: {self.environment.environment}")
+        logger.info(f"\nCatalog: {self.catalog.catalog}")
+        logger.info(f"Schema: {self.catalog.schema}")
+        logger.info(f"Volume Path: {self.catalog.volume_path}")
+        logger.info("\nArchitecture: Medallion (Bronze-Silver-Gold) with Star Schema")
+        logger.info("  Bronze: Raw events (batch + streaming)")
+        logger.info("  Silver: Star schema (fact + dimensions with SCD Type 2)")
+        logger.info("  Gold: Pre-aggregated analytics (8 tables)")
+        logger.info("\nCheckpoint Locations:")
+        logger.info(f"  Bronze: {self.storage.bronze_checkpoint}")
+        logger.info(f"  Silver: {self.storage.silver_checkpoint}")
+        logger.info(f"  Gold: {self.storage.gold_checkpoint}")
         print("\n" + "=" * 80)
 
 
@@ -198,25 +211,26 @@ print("=" * 60)
 
 # Get fully qualified table names
 logger.info("\n1. Get fully qualified table names:")
-logger.info("   Bronze Events: {config.get_table('bronze_events')}")
-logger.info("   Silver Events: {config.get_table('silver_events')}")
-logger.info("   Gold User Metrics: {config.get_table('gold_user_metrics')}")
+logger.info(f"   Bronze Events: {config.get_table('bronze_events')}")
+logger.info(f"   Fact Events: {config.get_table('fact_events')}")
+logger.info(f"   Dim Products: {config.get_table('silver_dim_products')}")
+logger.info(f"   Gold User Metrics: {config.get_table('gold_user_metrics')}")
 
 # Access volume path
 logger.info("\n2. Volume path for raw data:")
-logger.info("   {config.catalog.volume_path}")
+logger.info(f"   {config.catalog.volume_path}")
 
 # Access checkpoint locations
 logger.info("\n3. Checkpoint locations:")
-logger.info("   Bronze: {config.storage.bronze_checkpoint}")
-logger.info("   Silver: {config.storage.silver_checkpoint}")
-logger.info("   Gold: {config.storage.gold_checkpoint}")
+logger.info(f"   Bronze: {config.storage.bronze_checkpoint}")
+logger.info(f"   Silver: {config.storage.silver_checkpoint}")
+logger.info(f"   Gold: {config.storage.gold_checkpoint}")
 
 # Streaming settings
 logger.info("\n4. Streaming configuration:")
-logger.info("   Kafka Topic: {config.streaming.kafka_topic}")
-logger.info("   Bronze Trigger: {config.streaming.bronze_trigger_interval}")
-logger.info("   Replay Speed: {config.streaming.replay_speed_multiplier}x")
+logger.info(f"   Kafka Topic: {config.streaming.kafka_topic}")
+logger.info(f"   Bronze Trigger: {config.streaming.bronze_trigger_interval}")
+logger.info(f"   Replay Speed: {config.streaming.replay_speed_multiplier}x")
 
 print("\n" + "=" * 60)
 logger.info("\n Configuration loaded successfully!")

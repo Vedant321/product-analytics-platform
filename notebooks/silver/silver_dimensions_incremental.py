@@ -31,10 +31,10 @@ print()
 df_dim_current = spark.table("product_analytics.ecommerce.silver_dim_products")
 
 logger.info("Current dimension state:")
-logger.info("  Total rows: {df_dim_current.count():,}")
-logger.info("  Current versions: {df_dim_current.filter(F.col('is_current_version')).count():,}")
-logger.info("  Historical versions: {df_dim_current.filter(~F.col('is_current_version')).count():,}")
-logger.info("  Max product_sk: {df_dim_current.selectExpr('max(product_sk) as max_sk').collect()[0]['max_sk']:,}")
+logger.info(f"  Total rows: {df_dim_current.count():,}")
+logger.info(f"  Current versions: {df_dim_current.filter(F.col('is_current_version')).count():,}")
+logger.info(f"  Historical versions: {df_dim_current.filter(~F.col('is_current_version')).count():,}")
+logger.info(f"  Max product_sk: {df_dim_current.selectExpr('max(product_sk) as max_sk').collect()[0]['max_sk']:,}")
 print()
 logger.info("Sample current products:")
 df_dim_current.filter(F.col("is_current_version")).orderBy("product_sk").show(5, truncate=False)
@@ -69,7 +69,7 @@ df_sample = df_dim_current \
                                        1001619, 1001894, 1002042, 1002062, 1002098])) \
     .select("product_id", "price", "brand", "category_sk", "category_code")
 
-logger.info("Sample size: {df_sample.count()} products")
+logger.info(f"Sample size: {df_sample.count()} products")
 print()
 logger.info("BEFORE (current state):")
 df_sample.orderBy("product_id").show()
@@ -168,8 +168,8 @@ changed_count = df_changed_products.count()
 unchanged_count = df_unchanged_products.count()
 
 logger.info("\nCHANGE DETECTION RESULTS:")
-logger.info("  Changed products: {changed_count}")
-logger.info("  Unchanged products: {unchanged_count}")
+logger.info(f"  Changed products: {changed_count}")
+logger.info(f"  Unchanged products: {unchanged_count}")
 print()
 
 if changed_count > 0:
@@ -207,7 +207,7 @@ from datetime import datetime, timedelta
 if changed_count == 0:
     logger.info("No changes detected. Skipping SCD Type 2 update.")
 else:
-    logger.info("Processing {changed_count} changed products...")
+    logger.info(f"Processing {changed_count} changed products...")
     print()
     
     # STEP 4A: Close out old versions
@@ -218,7 +218,7 @@ else:
     current_date = date.today()
     yesterday = current_date - timedelta(days=1)
     
-    logger.info("  Setting effective_to = {yesterday} for old versions")
+    logger.info(f"  Setting effective_to = {yesterday} for old versions")
     logger.info("  Setting is_current_version = FALSE")
     print()
     
@@ -237,7 +237,7 @@ else:
         }
     )
     
-    logger.info("  Updated {len(product_ids_to_close)} old versions")
+    logger.info(f"  Updated {len(product_ids_to_close)} old versions")
     print()
     
     # STEP 4B: Insert new versions
@@ -249,8 +249,8 @@ else:
         .selectExpr("max(product_sk) as max_sk") \
         .collect()[0]['max_sk']
     
-    logger.info("  Current max product_sk: {max_sk:,}")
-    logger.info("  New surrogate keys will start from: {max_sk + 1:,}")
+    logger.info(f"  Current max product_sk: {max_sk:,}")
+    logger.info(f"  New surrogate keys will start from: {max_sk + 1:,}")
     print()
     
     # Build new version rows
@@ -287,7 +287,7 @@ else:
         .mode("append") \
         .saveAsTable("product_analytics.ecommerce.silver_dim_products")
     
-    logger.info("  Inserted {df_new_versions.count()} new versions")
+    logger.info(f"  Inserted {df_new_versions.count()} new versions")
     print()
     
     print("="*80)
@@ -303,7 +303,7 @@ else:
         .filter(F.col("product_id") == example_product_id) \
         .orderBy("effective_from")
     
-    logger.info("\nProduct {example_product_id} history:")
+    logger.info(f"\nProduct {example_product_id} history:")
     df_verification.select(
         "product_sk", "product_id", "price", "brand", 
         "effective_from", "effective_to", "is_current_version", "version_number"

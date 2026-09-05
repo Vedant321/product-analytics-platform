@@ -226,14 +226,14 @@ date_range = spark.table(bronze_table).select(
 
 min_date = date_range['min_date']
 max_date = date_range['max_date']
-logger.info("   Data range: {min_date} to {max_date}")
+logger.info(f"   Data range: {min_date} to {max_date}")
 
 # Add buffer for future dates (standard practice)
 start_date = datetime.strptime(str(min_date), '%Y-%m-%d')
 end_date = datetime.strptime(str(max_date), '%Y-%m-%d') + timedelta(days=365)
 
 logger.info("\nStep 2: Generate calendar with 1-year buffer...")
-logger.info("   Calendar range: {start_date.date()} to {end_date.date()}")
+logger.info(f"   Calendar range: {start_date.date()} to {end_date.date()}")
 logger.info("   Why buffer? Allows for future-dated analysis without rebuilding")
 
 # Generate all dates
@@ -269,7 +269,7 @@ while current_date <= end_date:
     })
     current_date += timedelta(days=1)
 
-logger.info("    Generated {len(date_list):,} dates")
+logger.info(f"    Generated {len(date_list):,} dates")
 
 # Create DataFrame with explicit schema (type safety)
 date_schema = StructType([
@@ -304,9 +304,9 @@ df_date.write.format("delta") \
     .saveAsTable(date_table)
 
 logger.info("\n dim_date created!")
-logger.info("   Table: {date_table}")
-logger.info("   Rows: {df_date.count():,}")
-logger.info("   Date Range: {min_date} to {end_date.date()}")
+logger.info(f"   Table: {date_table}")
+logger.info(f"   Rows: {df_date.count():,}")
+logger.info(f"   Date Range: {min_date} to {end_date.date()}")
 logger.info("\n This dimension is STATIC - only needs to be built ONCE!")
 logger.info("   Re-run only if you need to extend the date range.")
 
@@ -370,7 +370,7 @@ bronze_table = config.get_table('bronze_events')
 # Read Bronze and extract unique categories
 df_categories_raw = spark.table(bronze_table).select("category_code").distinct()
 
-logger.info("   Unique category_code values: {df_categories_raw.count():,}")
+logger.info(f"   Unique category_code values: {df_categories_raw.count():,}")
 
 # Split category hierarchy into levels
 logger.info("\nStep 2: Split hierarchy into L1, L2, L3...")
@@ -429,7 +429,7 @@ df_categories_final = df_categories_clean \
         "created_at"
     )
 
-logger.info("   Generated {df_categories_final.count():,} category surrogate keys")
+logger.info(f"   Generated {df_categories_final.count():,} category surrogate keys")
 
 logger.info("\n Step 5: Preview dim_categories:")
 df_categories_final.orderBy("category_sk").show(10, truncate=False)
@@ -447,8 +447,8 @@ df_categories_final.write.format("delta") \
     .saveAsTable(category_table)
 
 logger.info("\n dim_categories created!")
-logger.info("   Table: {category_table}")
-logger.info("   Rows: {df_categories_final.count():,}")
+logger.info(f"   Table: {category_table}")
+logger.info(f"   Rows: {df_categories_final.count():,}")
 logger.info("\n This is a SIMPLE dimension - extract unique values, no history tracking")
 logger.info("   Rebuild if categories change (rare in production)")
 
@@ -617,7 +617,7 @@ df_products_latest = spark.table(bronze_table) \
     )
 
 product_count = df_products_latest.count()
-logger.info("   Found {product_count:,} unique products in Bronze")
+logger.info(f"   Found {product_count:,} unique products in Bronze")
 
 logger.info("\nStep 2: Enrich with category surrogate keys...")
 
@@ -662,8 +662,8 @@ logger.info("    Brands normalized, nulls handled, negative prices fixed")
 logger.info("\n Step 4: Set effective dates (SCD Type 2 metadata)...")
 
 min_date = spark.table(bronze_table).selectExpr("min(event_date) as min_date").collect()[0]['min_date']
-logger.info("   Earliest event date: {min_date}")
-logger.info("   All products will be effective from: {min_date}")
+logger.info(f"   Earliest event date: {min_date}")
+logger.info(f"   All products will be effective from: {min_date}")
 logger.info("   All products will be effective to: 9999-12-31 (end of time)")
 logger.info("   All products will be current: TRUE")
 
@@ -701,7 +701,7 @@ df_products_final = df_products_versioned \
         "updated_at"
     )
 
-logger.info("   Generated {df_products_final.count():,} surrogate keys")
+logger.info(f"   Generated {df_products_final.count():,} surrogate keys")
 
 logger.info("\n Step 6: Preview dim_products:")
 df_products_final.orderBy("product_sk").show(10, truncate=False)
@@ -719,10 +719,10 @@ df_products_final.write.format("delta") \
     .saveAsTable(product_table)
 
 logger.info("\n dim_products created!")
-logger.info("   Table: {product_table}")
-logger.info("   Rows: {df_products_final.count():,}")
-logger.info("   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
-logger.info("   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
+logger.info(f"   Table: {product_table}")
+logger.info(f"   Rows: {df_products_final.count():,}")
+logger.info(f"   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
+logger.info(f"   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
 
 logger.info("\n🎓 KEY LEARNINGS:")
 logger.info("   1. product_sk = surrogate key (unique per VERSION)")
@@ -873,7 +873,7 @@ df_user_activity = spark.table(bronze_table) \
     )
 
 user_count = df_user_activity.count()
-logger.info("   Found {user_count:,} unique users in Bronze")
+logger.info(f"   Found {user_count:,} unique users in Bronze")
 
 # Calculate user segment based on activity
 logger.info("\n Step 2: Calculate behavioral segments...")
@@ -938,7 +938,7 @@ df_users_final = df_users_versioned \
         "updated_at"
     )
 
-logger.info("   Generated {df_users_final.count():,} surrogate keys")
+logger.info(f"   Generated {df_users_final.count():,} surrogate keys")
 
 logger.info("\n Step 5: Preview dim_users:")
 df_users_final.orderBy(F.desc("total_events")).show(10, truncate=False)
@@ -952,10 +952,10 @@ df_users_final.write.format("delta") \
     .saveAsTable(user_table)
 
 logger.info("\n dim_users created!")
-logger.info("   Table: {user_table}")
-logger.info("   Rows: {df_users_final.count():,}")
-logger.info("   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
-logger.info("   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
+logger.info(f"   Table: {user_table}")
+logger.info(f"   Rows: {df_users_final.count():,}")
+logger.info(f"   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
+logger.info(f"   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
 
 logger.info("\n Segment breakdown:")
 df_users_final.groupBy("user_segment") \
@@ -1218,7 +1218,7 @@ bronze_table = "product_analytics.ecommerce.bronze_events"
 df_events = spark.table(bronze_table)
 
 event_count = df_events.count()
-logger.info("   Found {event_count:,} events in Bronze")
+logger.info(f"   Found {event_count:,} events in Bronze")
 
 # Lookup date_sk
 logger.info("\n Step 2: Lookup date_sk from dim_date...")
@@ -1321,10 +1321,10 @@ logger.info("\n📋 Step 6: Preview fact_events:")
 df_fact_events.show(10, truncate=False)
 
 logger.info("\n Data Quality Check:")
-logger.info("   Total events: {df_fact_events.count():,}")
-logger.info("   Events with valid date_sk: {df_fact_events.filter(F.col('date_sk') != -1).count():,}")
-logger.info("   Events with valid user_sk: {df_fact_events.filter(F.col('user_sk') != -1).count():,}")
-logger.info("   Events with valid product_sk: {df_fact_events.filter(F.col('product_sk') != -1).count():,}")
+logger.info(f"   Total events: {df_fact_events.count():,}")
+logger.info(f"   Events with valid date_sk: {df_fact_events.filter(F.col('date_sk') != -1).count():,}")
+logger.info(f"   Events with valid user_sk: {df_fact_events.filter(F.col('user_sk') != -1).count():,}")
+logger.info(f"   Events with valid product_sk: {df_fact_events.filter(F.col('product_sk') != -1).count():,}")
 
 logger.info("\n💰 Revenue Check:")
 df_fact_events.groupBy("event_type") \
@@ -1348,15 +1348,15 @@ df_fact_events.write.format("delta") \
     .saveAsTable(fact_table)
 
 logger.info("\n fact_events created!")
-logger.info("   Table: {fact_table}")
-logger.info("   Rows: {df_fact_events.count():,}")
+logger.info(f"   Table: {fact_table}")
+logger.info(f"   Rows: {df_fact_events.count():,}")
 
 logger.info("\nStar schema build complete")
-logger.info("    dim_date ({spark.table('product_analytics.ecommerce.silver_dim_date').count():,} rows)")
-logger.info("    dim_categories ({spark.table('product_analytics.ecommerce.silver_dim_categories').count():,} rows)")
-logger.info("    dim_products ({spark.table('product_analytics.ecommerce.silver_dim_products').count():,} rows)")
-logger.info("    dim_users ({spark.table('product_analytics.ecommerce.silver_dim_users').count():,} rows)")
-logger.info("    fact_events ({df_fact_events.count():,} rows)")
+logger.info(f"    dim_date ({spark.table('product_analytics.ecommerce.silver_dim_date').count():,} rows)")
+logger.info(f"    dim_categories ({spark.table('product_analytics.ecommerce.silver_dim_categories').count():,} rows)")
+logger.info(f"    dim_products ({spark.table('product_analytics.ecommerce.silver_dim_products').count():,} rows)")
+logger.info(f"    dim_users ({spark.table('product_analytics.ecommerce.silver_dim_users').count():,} rows)")
+logger.info(f"    fact_events ({df_fact_events.count():,} rows)")
 
 logger.info("\n🔑 Next: Demonstrate Delta features (OPTIMIZE, Time Travel, MERGE)!")
 
@@ -1517,8 +1517,8 @@ history_df.select(
 ).show(10, truncate=False)
 
 latest_version = history_df.selectExpr("max(version) as max_ver").collect()[0]['max_ver']
-logger.info("\n   Latest version: {latest_version}")
-logger.info("   Total versions tracked: {latest_version + 1}\n")
+logger.info(f"\n   Latest version: {latest_version}")
+logger.info(f"   Total versions tracked: {latest_version + 1}\n")
 
 # Query specific version
 logger.info(" Query Version 0 (original data before OPTIMIZE):")
@@ -1530,7 +1530,7 @@ df_v0 = spark.sql("""
 """)
 df_v0.show()
 
-logger.info("\n Query Version {latest_version} (current data after OPTIMIZE):")
+logger.info(f"\n Query Version {latest_version} (current data after OPTIMIZE):")
 df_current = spark.sql(f"""
     SELECT event_type, COUNT(*) as count
     FROM product_analytics.ecommerce.fact_events VERSION AS OF {latest_version}
@@ -1814,11 +1814,11 @@ logger.info("Star schema build complete - ready for analytics")
 print("="*80)
 
 logger.info("\n Table Summary:")
-logger.info("    dim_date:         {spark.table('product_analytics.ecommerce.silver_dim_date').count():>10,} rows")
-logger.info("    dim_categories:   {spark.table('product_analytics.ecommerce.silver_dim_categories').count():>10,} rows")
-logger.info("    dim_products:     {spark.table('product_analytics.ecommerce.silver_dim_products').count():>10,} rows")
-logger.info("    dim_users:        {spark.table('product_analytics.ecommerce.silver_dim_users').count():>10,} rows")
-logger.info("    fact_events:      {spark.table('product_analytics.ecommerce.fact_events').count():>10,} rows")
+logger.info(f"    dim_date:         {spark.table('product_analytics.ecommerce.silver_dim_date').count():>10,} rows")
+logger.info(f"    dim_categories:   {spark.table('product_analytics.ecommerce.silver_dim_categories').count():>10,} rows")
+logger.info(f"    dim_products:     {spark.table('product_analytics.ecommerce.silver_dim_products').count():>10,} rows")
+logger.info(f"    dim_users:        {spark.table('product_analytics.ecommerce.silver_dim_users').count():>10,} rows")
+logger.info(f"    fact_events:      {spark.table('product_analytics.ecommerce.fact_events').count():>10,} rows")
 
 print("\n" + "="*80)
 logger.info(" SAMPLE QUERY #1: Monthly Revenue by Brand")

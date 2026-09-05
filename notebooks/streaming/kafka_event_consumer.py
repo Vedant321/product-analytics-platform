@@ -34,9 +34,9 @@ BRONZE_TABLE = 'product_analytics.ecommerce.bronze_events'  # Unified bronze tab
 CHECKPOINT_LOCATION = '/tmp/checkpoints/streaming_events'
 TRIGGER_INTERVAL = '10 seconds'
 
-logger.info("Input: {INPUT_TABLE}")
-logger.info("Output: {BRONZE_TABLE} (unified bronze layer)")
-logger.info("Checkpoint: {CHECKPOINT_LOCATION}")
+logger.info(f"Input: {INPUT_TABLE}")
+logger.info(f"Output: {BRONZE_TABLE} (unified bronze layer)")
+logger.info(f"Checkpoint: {CHECKPOINT_LOCATION}")
 
 # COMMAND ----------
 
@@ -47,7 +47,7 @@ input_stream = spark.readStream \
     .table(INPUT_TABLE)
 
 logger.info("Delta stream reader configured")
-logger.info("Reading from: {INPUT_TABLE}")
+logger.info(f"Reading from: {INPUT_TABLE}")
 logger.info("\nStream Schema:")
 input_stream.printSchema()
 
@@ -68,13 +68,13 @@ logger.info("Schema matches bronze_events (raw natural keys)")
 # DBTITLE 1,Bronze Table Configuration
 # MAGIC %md
 # MAGIC ## Lambda Architecture: Unified Bronze Layer
-# MAGIC 
+# MAGIC
 # MAGIC Both batch and streaming write to the same `bronze_events` table.
 # MAGIC - **Batch source:** Kaggle CSV files (source = 'batch')
 # MAGIC - **Streaming source:** Kafka/Delta stream (source = 'streaming')
-# MAGIC 
+# MAGIC
 # MAGIC The table already exists from batch ingestion. No need to create.
-# MAGIC 
+# MAGIC
 # MAGIC **Key Principle:** Bronze = RAW data only (natural keys: product_id, user_id, category_id)
 # MAGIC - NO surrogate keys (user_sk, product_sk)
 # MAGIC - NO enrichments
@@ -92,11 +92,11 @@ query = parsed_stream.writeStream \
     .table(BRONZE_TABLE)
 
 logger.info("Streaming query started!")
-logger.info("Writing to: {BRONZE_TABLE} (unified bronze layer)")
-logger.info("Checkpoint: {CHECKPOINT_LOCATION}")
-logger.info("Trigger interval: {TRIGGER_INTERVAL}")
-logger.info("\nQuery ID: {query.id}")
-logger.info("Status: {query.status}")
+logger.info(f"Writing to: {BRONZE_TABLE} (unified bronze layer)")
+logger.info(f"Checkpoint: {CHECKPOINT_LOCATION}")
+logger.info(f"Trigger interval: {TRIGGER_INTERVAL}")
+logger.info(f"\nQuery ID: {query.id}")
+logger.info(f"Status: {query.status}")
 
 # COMMAND ----------
 
@@ -111,10 +111,10 @@ time.sleep(15)
 # Get latest progress
 if query.lastProgress:
     progress = query.lastProgress
-    logger.info("Batch ID: {progress['batchId']}")
-    logger.info("Input rows: {progress['numInputRows']}")
-    logger.info("Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
-    logger.info("Batch duration: {progress.get('durationMs', {}).get('triggerExecution', 0) / 1000:.2f} seconds")
+    logger.info(f"Batch ID: {progress['batchId']}")
+    logger.info(f"Input rows: {progress['numInputRows']}")
+    logger.info(f"Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
+    logger.info(f"Batch duration: {progress.get('durationMs', {}).get('triggerExecution', 0) / 1000:.2f} seconds")
 else:
     logger.info("Waiting for first batch...")
 
@@ -154,5 +154,3 @@ logger.info("To view Spark UI: Check 'Structured Streaming' tab")
 # MAGIC WHERE source = 'streaming'
 # MAGIC ORDER BY ingestion_timestamp DESC
 # MAGIC LIMIT 20;
-
-# COMMAND ----------

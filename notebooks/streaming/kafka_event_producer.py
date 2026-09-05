@@ -48,8 +48,8 @@ BATCH_INTERVAL_SECONDS = 10
 TOTAL_BATCHES = 6
 
 logger.info("Configuration loaded")
-logger.info("Staging table: {STAGING_TABLE}")
-logger.info("Events per batch: {EVENTS_PER_BATCH}")
+logger.info(f"Staging table: {STAGING_TABLE}")
+logger.info(f"Events per batch: {EVENTS_PER_BATCH}")
 
 # COMMAND ----------
 
@@ -74,7 +74,7 @@ spark.sql(f"""
     COMMENT 'Staging table for streaming simulation (simulates Kafka topic)'
 """)
 
-logger.info("Staging table ready: {STAGING_TABLE}")
+logger.info(f"Staging table ready: {STAGING_TABLE}")
 logger.info("Schema: RAW natural keys (product_id, user_id, category_id)")
 
 # COMMAND ----------
@@ -104,17 +104,17 @@ events_df = spark.sql("""
     LIMIT 10000
 """)
 
-logger.info("Loaded {events_df.count():,} events for simulation")
+logger.info(f"Loaded {events_df.count():,} events for simulation")
 events_df.cache()
 
 # COMMAND ----------
 
 # DBTITLE 1,Send Events to Staging Table
 logger.info("\nStarting event production...")
-logger.info("Sending {TOTAL_BATCHES} batches of {EVENTS_PER_BATCH} events each")
+logger.info(f"Sending {TOTAL_BATCHES} batches of {EVENTS_PER_BATCH} events each")
 
 for batch_num in range(1, TOTAL_BATCHES + 1):
-    logger.info("\nBatch {batch_num}/{TOTAL_BATCHES}")
+    logger.info(f"\nBatch {batch_num}/{TOTAL_BATCHES}")
     
     # Sample events for this batch
     batch_df = events_df.sample(fraction=EVENTS_PER_BATCH/events_df.count()) \
@@ -129,14 +129,14 @@ for batch_num in range(1, TOTAL_BATCHES + 1):
         .mode('append') \
         .saveAsTable(STAGING_TABLE)
     
-    logger.info("Sent {EVENTS_PER_BATCH} events to {STAGING_TABLE}")
+    logger.info(f"Sent {EVENTS_PER_BATCH} events to {STAGING_TABLE}")
     
     if batch_num < TOTAL_BATCHES:
-        logger.info("Waiting {BATCH_INTERVAL_SECONDS} seconds before next batch...")
+        logger.info(f"Waiting {BATCH_INTERVAL_SECONDS} seconds before next batch...")
         time.sleep(BATCH_INTERVAL_SECONDS)
 
 logger.info("\nProduction complete!")
-logger.info("Total events sent: {EVENTS_PER_BATCH * TOTAL_BATCHES}")
+logger.info(f"Total events sent: {EVENTS_PER_BATCH * TOTAL_BATCHES}")
 
 # COMMAND ----------
 
@@ -168,5 +168,3 @@ logger.info("Total events sent: {EVENTS_PER_BATCH * TOTAL_BATCHES}")
 # MAGIC FROM product_analytics.ecommerce.streaming_events_input
 # MAGIC ORDER BY produced_at DESC
 # MAGIC LIMIT 10;
-
-# COMMAND ----------

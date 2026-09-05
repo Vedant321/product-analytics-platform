@@ -149,7 +149,7 @@ console_query = tumbling_agg.writeStream \
     .start()
 
 logger.info(" Console output stream started")
-logger.info(" Query ID: {console_query.id}")
+logger.info(f"Query ID: {console_query.id}")
 
 # COMMAND ----------
 
@@ -221,7 +221,7 @@ funnel_query = funnel_agg.writeStream \
     .table('product_analytics.ecommerce.streaming_funnel_metrics')
 
 logger.info(" Funnel metrics stream started")
-logger.info(" Query ID: {funnel_query.id}")
+logger.info(f"Query ID: {funnel_query.id}")
 
 # COMMAND ----------
 
@@ -233,14 +233,14 @@ time.sleep(15)  # Wait for first batch
 logger.info("\n Active Streaming Queries:\n")
 
 for query in spark.streams.active:
-    logger.info("Query: {query.name if query.name else query.id}")
-    logger.info("Status: {query.status['message']}")
+    logger.info(f"Query: {query.name if query.name else query.id}")
+    logger.info(f"Status: {query.status['message']}")
     
     if query.lastProgress:
         progress = query.lastProgress
-        logger.info("Batch ID: {progress['batchId']}")
-        logger.info("Input rows: {progress['numInputRows']}")
-        logger.info("Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
+        logger.info(f"Batch ID: {progress['batchId']}")
+        logger.info(f"Input rows: {progress['numInputRows']}")
+        logger.info(f"Processing rate: {progress.get('processedRowsPerSecond', 0):.1f} rows/sec")
     print("-" * 50)
 
 logger.info("\n To stop all streams: spark.streams.active[i].stop()")
