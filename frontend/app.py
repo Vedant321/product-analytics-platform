@@ -449,14 +449,22 @@ with st.sidebar:
     selected_page = st.radio(
         "Navigation",
         ["Overview", "Products", "Categories", "Forecast"],
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="selected_page",
     )
     
     
     
     # Settings
     st.subheader("⚙️ Settings")
-    days_filter = st.slider("Days to Display", 7, 90, 30)
+    selected_page = st.session_state.get("selected_page", "Overview")
+    days_filter = st.slider(
+        "History for forecast" if selected_page == "Forecast" else "Days to Display",
+        14 if selected_page == "Forecast" else 7,
+        90,
+        30,
+        key="history_days_slider",
+    )
     
     # Data Refresh
     st.markdown("")
@@ -828,14 +836,15 @@ elif selected_page == "Forecast":
     else:
         history_df["full_date"] = pd.to_datetime(history_df["full_date"], errors="coerce")
         history_df["value"] = pd.to_numeric(history_df["value"], errors="coerce")
-        history_df = history_df.dropna(subset=["full_date", "value"]).sort_values("full_date")
+        history_df = history_df.dropna(subset=["full_date", "value"]).sort_values("full_date").tail(days_filter)
+        st.caption(f"Using the most recent {days_filter} days of available history. The forecast horizon is controlled separately above.")
         # Fill calendar gaps with zero only between observed dates; dates outside source coverage stay absent.
         series = history_df.set_index("full_date")["value"].asfreq("D", fill_value=0)
         series = series.replace([np.inf, -np.inf], np.nan).dropna()
-        if len(series) < 35:
-            st.warning(f"Only {len(series)} daily observations are available. At least 35 are recommended before comparing these models.")
+        if len(series) < 14:
+            st.warning(f"Only {len(series)} daily observations are available. At least 14 are needed to back-test the baseline models.")
         else:
-            validation_size = min(14, max(7, len(series) // 5))
+            validation_size = min(7, max(3, len(series) // 5))
             train, actual = series.iloc[:-validation_size], series.iloc[-validation_size:]
             scores = []
             for name in model_names:
