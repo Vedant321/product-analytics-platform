@@ -6,6 +6,9 @@ import sys
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementState
 import time
+import numpy as np
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -445,7 +448,7 @@ with st.sidebar:
     # Navigation - Clean button-style
     selected_page = st.radio(
         "Navigation",
-        ["Overview", "Products", "Categories", "Experimentation"],
+        ["Overview", "Products", "Categories", "Forecast"],
         label_visibility="collapsed"
     )
     
@@ -768,25 +771,110 @@ elif selected_page == "Categories":
         st.error(f"Error loading category metrics: {str(e)}")
         st.exception(e)
 
-# ============ PAGE: EXPERIMENTATION ============
-elif selected_page == "Experimentation":
-    st.subheader("🧪 A/B Testing & Experimentation")
-    st.info("⚡ Coming Soon: A/B test results, experiment metrics, and ML predictions")
-    
-    # Placeholder sections
-    with st.expander("Active Experiments"):
-        st.markdown("Track running A/B tests and their performance metrics")
-    
-    with st.expander("🤖 ML Models"):
-        st.markdown("""
-        - Churn prediction
-        - Customer lifetime value
-        - Product recommendations
-        - Demand forecasting
-        """)
-    
-    with st.expander("📊 Statistical Analysis"):
-        st.markdown("Significance testing, confidence intervals, and experiment analysis")
+# ============ PAGE: FORECAST ============
+elif selected_page == "Forecast":
+    st.subheader("Daily Forecast")
+    st.caption("Compare time-series methods on historical data, then project the selected metric forward.")
+
+    metric_options = {
+        "Revenue": ("total_revenue", "Revenue (USD)"),
+        "Purchases": ("total_purchases", "Purchases"),
+        "Daily active users": ("daily_active_users", "Users"),
+    }
+    controls = st.columns([2, 1])
+    metric_label = controls[0].selectbox("Metric", list(metric_options))
+    horizon = controls[1].selectbox("Forecast horizon", [7, 14, 28], index=0, format_func=lambda d: f"{d} days")
+
+    @st.cache_data(ttl=300)
+    def load_forecast_history(_repo, metric_column):
+        # Forecast needs the full daily history, not the Overview's recent-days LIMIT.
+        query = f"""
+        SELECT full_date, CAST({metric_column} AS DOUBLE) AS value
+        FROM {_repo.catalog}.{_repo.schema}.gold_daily_metrics
+        WHERE {metric_column} IS NOT NULL
+        ORDER BY full_date
+        """
+        return _repo._execute_query(query)
+
+    def forecast_values(train, steps, model_name):
+        values = np.asarray(train, dtype=float)
+        if model_name == "Last week (seasonal naive)":
+            if len(values) < 7:
+                raise ValueError("At least 7 training days are needed.")
+            return np.resize(values[-7:], steps)
+        if model_name == "28-day moving average":
+            return np.repeat(np.mean(values[-min(28, len(values)):]), steps)
+        if model_name == "Holt linear trend":
+            if len(values) < 14:
+                raise ValueError("At least 14 training days are needed.")
+            fit = ExponentialSmoothing(values, trend="add", damped_trend=True, initialization_method="estimated").fit(optimized=True)
+            return np.asarray(fit.forecast(steps))
+        if model_name == "Holt-Winters weekly":
+            if len(values) < 21:
+                raise ValueError("At least 21 training days are needed for weekly seasonality.")
+            fit = ExponentialSmoothing(values, trend="add", damped_trend=True, seasonal="add", seasonal_periods=7, initialization_method="estimated").fit(optimized=True)
+            return np.asarray(fit.forecast(steps))
+        if model_name == "SARIMA (weekly)":
+            if len(values) < 35:
+                raise ValueError("At least 35 training days are needed for weekly SARIMA.")
+            fit = SARIMAX(values, order=(1, 1, 1), seasonal_order=(1, 0, 1, 7), enforce_stationarity=False, enforce_invertibility=False).fit(disp=False)
+            return np.asarray(fit.forecast(steps))
+        raise ValueError("Unknown model")
+
+    model_names = ["Last week (seasonal naive)", "28-day moving average", "Holt linear trend", "Holt-Winters weekly", "SARIMA (weekly)"]
+    history_df = load_forecast_history(repo, metric_options[metric_label][0])
+    if history_df.empty:
+        st.info("No daily history is available for forecasting.")
+    else:
+        history_df["full_date"] = pd.to_datetime(history_df["full_date"], errors="coerce")
+        history_df["value"] = pd.to_numeric(history_df["value"], errors="coerce")
+        history_df = history_df.dropna(subset=["full_date", "value"]).sort_values("full_date")
+        # Fill calendar gaps with zero only between observed dates; dates outside source coverage stay absent.
+        series = history_df.set_index("full_date")["value"].asfreq("D", fill_value=0)
+        series = series.replace([np.inf, -np.inf], np.nan).dropna()
+        if len(series) < 35:
+            st.warning(f"Only {len(series)} daily observations are available. At least 35 are recommended before comparing these models.")
+        else:
+            validation_size = min(14, max(7, len(series) // 5))
+            train, actual = series.iloc[:-validation_size], series.iloc[-validation_size:]
+            scores = []
+            for name in model_names:
+                try:
+                    predicted = forecast_values(train.values, len(actual), name)
+                    mae = float(np.mean(np.abs(actual.values - predicted)))
+                    scores.append({"Model": name, "MAE": mae, "Status": "Scored"})
+                except Exception as exc:
+                    scores.append({"Model": name, "MAE": np.nan, "Status": str(exc)})
+            score_df = pd.DataFrame(scores)
+            scored = score_df.dropna(subset=["MAE"])
+            st.markdown(f"**Back-test:** train on earlier history, predict the last {validation_size} days, and compare with actual values.")
+            left, right = st.columns([2, 1])
+            with left:
+                st.dataframe(score_df, hide_index=True, use_container_width=True, column_config={"MAE": st.column_config.NumberColumn("MAE (lower is better)", format="%.2f")})
+            with right:
+                if not scored.empty:
+                    st.metric("Lowest back-test MAE", scored.loc[scored["MAE"].idxmin(), "Model"], f"{scored['MAE'].min():,.2f} average error")
+            valid_names = scored["Model"].tolist()
+            if valid_names:
+                selected_model = st.selectbox("Model to display", valid_names, index=int(scored["MAE"].values.argmin()))
+                try:
+                    # Back-test the selected model on the recent validation window for the chart.
+                    validation_forecast = forecast_values(train.values, len(actual), selected_model)
+                    full_forecast = forecast_values(series.values, horizon, selected_model)
+                    future_dates = pd.date_range(series.index[-1] + pd.Timedelta(days=1), periods=horizon, freq="D")
+                    chart_df = pd.DataFrame({"Date": list(series.index) + list(actual.index) + list(future_dates),
+                                             "Value": list(series.values) + list(validation_forecast) + list(full_forecast),
+                                             "Series": (["History"] * len(series) + ["Back-test forecast"] * len(actual) + ["Forecast"] * horizon)})
+                    fig = px.line(chart_df, x="Date", y="Value", color="Series", line_dash="Series",
+                                  color_discrete_map={"History": "#1a73e8", "Back-test forecast": "#fbbc04", "Forecast": "#34a853"},
+                                  labels={"Value": metric_options[metric_label][1]})
+                    fig.update_layout(height=480, hovermode="x unified", legend_title_text="")
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.caption(f"Selected method: {selected_model}. Forecast values are estimates from historical patterns; promotions, stock changes, and other external events are not included.")
+                except Exception as exc:
+                    st.warning(f"This model could not produce a forecast for the current data: {exc}")
+             else:
+                 st.warning("None of the models could be scored on this history. Review the daily source data before relying on a forecast.")
 
 
 st.markdown("🚀 Built with Streamlit + Databricks Delta Lake | 📊 Powered by Gold Layer Analytics")
