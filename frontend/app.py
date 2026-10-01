@@ -873,8 +873,8 @@ elif selected_page == "Forecast":
                     st.caption(f"Selected method: {selected_model}. Forecast values are estimates from historical patterns; promotions, stock changes, and other external events are not included.")
                 except Exception as exc:
                     st.warning(f"This model could not produce a forecast for the current data: {exc}")
-             else:
-                 st.warning("None of the models could be scored on this history. Review the daily source data before relying on a forecast.")
+            else:
+                st.warning("None of the models could be scored on this history. Review the daily source data before relying on a forecast.")
 
 
 st.markdown("🚀 Built with Streamlit + Databricks Delta Lake | 📊 Powered by Gold Layer Analytics")
