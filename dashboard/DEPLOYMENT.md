@@ -13,11 +13,11 @@ Use a short CDN response cache for public, identical queries to control warehous
 ## What remains to deploy
 
 1. Set up a Databricks service principal with OAuth and the read-only permissions above.
-2. Configure the service principal credentials as Vercel secrets, connect the Git repository, and deploy a preview URL using the root `vercel.json` configuration.
+2. Configure the service principal credentials as Vercel secrets and deploy using the root `vercel.json` configuration.
 3. Verify the Vercel build and every view, control, forecast method, and error state against the live Gold tables before making the deployment public.
 4. Set usage and cost alerts for Vercel and the SQL warehouse.
 
-The repository now includes Vercel service routing and production credential checks, but no Vercel deployment has been created or verified yet. Vercel Services is currently a beta feature. A live API reads the latest rows available in Gold, but it cannot show newer events until the ingestion and Gold refresh pipelines load them.
+The repository includes Vercel service routing and production credential checks. A Vercel deployment has been created, but live Gold access and every dashboard control still need verification before the URL is shared publicly. Vercel Services is currently a beta feature. A live API reads the latest rows available in Gold, but it cannot show newer events until the ingestion and Gold refresh pipelines load them.
 
 ## References
 

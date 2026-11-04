@@ -2,13 +2,13 @@
 
 A lakehouse project covering event ingestion, dimensional modeling, Gold aggregates, and an interactive analytics dashboard.
 
-**Built with:** Databricks Delta Lake + Kafka Streaming + FastAPI + React/TypeScript
+**Built with:** Databricks Delta Lake, Kafka, Python, FastAPI, React, TypeScript, Vite, and Recharts
 
-**Architecture:** Medallion (Bronze → Silver → Gold) + Real-time Processing + Interactive Analytics
+**Architecture:** Batch and streaming ingestion → Bronze → Silver star schema → Gold metrics → FastAPI → React dashboard
 
 ## Dashboard
 
-The React dashboard reads the Databricks Gold layer through a read-only Python API. It brings together daily commerce metrics, category and brand performance, and a forecasting lab that compares five time-series methods on the same holdout window.
+The React and TypeScript dashboard reads the Databricks Gold layer through a read-only FastAPI service. It brings together daily commerce metrics, category and brand performance, and a forecasting lab that compares five time-series methods on the same holdout window. Vite builds the frontend, Recharts renders the charts, and the Databricks SDK queries the SQL warehouse. Forecasts are calculated from the selected Gold history when requested.
 
 ![Commerce overview with revenue, purchases, daily trend, and event funnel](docs/assets/dashboard/overview.png)
 
@@ -24,11 +24,22 @@ Category and brand revenue concentration from Gold aggregates.
 
 Historical trend, projected values, and holdout MAE across forecasting methods.
 
+The methods are seasonal naive, moving average, Holt trend, Holt-Winters, and SARIMA. They are scored against the same held-out observed days using mean absolute error (MAE). The selected history window, metric, and horizon determine the forecast request; predictions are labeled separately from observed values.
+
 ![Forecast chart and model comparison](docs/assets/dashboard/forecast-lab.png)
 
-See [dashboard/README.md](dashboard/README.md) for local setup, data definitions, and deployment notes.
+### Run locally
 
-For public access, the [hosting plan](dashboard/DEPLOYMENT.md) uses a live FastAPI service on Vercel to query Databricks Gold and compute forecasts when visitors change controls. Public hosting has not been configured yet.
+From the repository root, run:
+
+```bash
+cd dashboard/web
+npm run dev
+```
+
+Open <http://localhost:5173>. The launcher starts both the FastAPI service and the Vite frontend. Live Databricks Gold data is the default; see [dashboard setup](dashboard/README.md) for authentication and prerequisites.
+
+The repository is configured for Vercel Services to host the React frontend and FastAPI backend. Public Databricks access requires server-side OAuth credentials for a read-only service principal. See the [deployment guide](dashboard/DEPLOYMENT.md) for setup and verification. The dashboard shows the latest date available in Gold; it does not generate new observed data.
 
 ---
 
@@ -205,13 +216,15 @@ product-analytics-platform/
 │
 ├── dashboard/
 │   ├── backend/                    # FastAPI, Gold queries, and forecasting
-│   └── web/                        # React/TypeScript dashboard
+│   ├── requirements.txt            # Python API dependencies
+│   └── web/                        # React, TypeScript, Vite, and Recharts
 │
 ├── docs/
 │   ├── assets/dashboard/           # Dashboard screenshots for this README
 │   ├── SILVER_LAYER_ARCHITECTURE.md
 │   └── DIMENSIONS_COMPLETE_GUIDE.md
 │
+├── vercel.json                      # Public web and API service routing
 └── README.md
 ```
 
@@ -267,6 +280,8 @@ Users are classified based on behavior:
 **Development:**
 - **Languages**: Python, SQL, TypeScript
 - **Dashboard**: React + FastAPI
+- **Frontend build and charts**: Vite + Recharts
+- **Forecasting**: NumPy, pandas, and statsmodels
 - **Version Control**: Git + GitHub
 - **Logging**: Centralized Python logging configuration
 
@@ -274,7 +289,6 @@ Users are classified based on behavior:
 - **Pattern**: Medallion Architecture (Bronze/Silver/Gold) with hybrid ingestion
 - **Data Modeling**: Kimball star schema with SCD Type 2
 - **Processing**: Unified transformation path for both batch and streaming sources
-- **Processing**: Batch and streaming events use the same Bronze-to-Gold transformation path
 
 **Note:** Databricks workspace runs on cloud infrastructure (AWS backend in this case), but the platform abstracts infrastructure management - no direct AWS provisioning required.
 
@@ -324,7 +338,7 @@ This platform demonstrates end-to-end data engineering best practices:
 - Git version control
 
 **Deployment:**
-- Local React/FastAPI dashboard connected to the Databricks Gold layer
+- React/FastAPI dashboard configured for Vercel with live Databricks Gold queries
 - Streaming infrastructure ready (Kafka integration setup)
 - Scalable compute (Spark Serverless)
 
@@ -338,7 +352,7 @@ This platform demonstrates end-to-end data engineering best practices:
 
 **Hybrid Ingestion:** Unified pipeline supporting both batch CSV and streaming Kafka sources
 
-**Production-Ready:** Deployed dashboard with proper logging, error handling, and data quality checks
+**Dashboard:** Interactive Gold metrics and on-demand forecasting across five time-series methods
 
 ---
 

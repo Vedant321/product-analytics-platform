@@ -1,32 +1,12 @@
-# Architecture Diagrams
+# Architecture Documentation
 
-Visual diagrams for the Product Analytics Platform.
-
----
-
-## Available Diagrams
-
-### 1. Full Platform Architecture (Image)
-
-**File:** `architecture-diagram.png` (saved separately)
-
-**Shows:**
-- Complete 3-layer architecture (Bronze → Silver → Gold)
-- Star schema visualization
-- Data flow between layers
-- Cross-cutting features (data quality, monitoring, lineage, etc.)
-- Storage & infrastructure components
-- Access control
-
-**When to Use:**
-- Presentations and documentation
-- Onboarding new team members
-- Architecture reviews
-- High-level system overview
+Data model and dashboard documentation for the Product Analytics Platform.
 
 ---
 
-### 2. Text-Based Architecture (Markdown)
+## Architecture Guide
+
+### Platform Architecture
 
 **File:** `ARCHITECTURE.md`
 
@@ -74,10 +54,10 @@ Visual diagrams for the Product Analytics Platform.
 ```
 docs/
 ├── README.md                    # This file
-├── architecture-diagram.png     # Visual diagram (image format)
 ├── ARCHITECTURE.md              # Text-based detailed architecture
 ├── SILVER_LAYER_ARCHITECTURE.md # Silver layer deep-dive
-└── DIMENSIONS_COMPLETE_GUIDE.md # SCD Type 2 implementation
+├── DIMENSIONS_COMPLETE_GUIDE.md # SCD Type 2 implementation
+└── assets/dashboard/            # React dashboard screenshots
 ```
 
 ---
@@ -86,20 +66,17 @@ docs/
 
 When updating the architecture:
 
-1. **Image Diagram:** Update the source image file
-2. **Text Diagrams:** Update ARCHITECTURE.md
-3. **Cross-reference:** Ensure both stay in sync
-4. **Commit both:** Keep visual and text versions together
+1. Update `ARCHITECTURE.md` when the data flow or table model changes.
+2. Update the root README screenshots when the React dashboard changes.
+3. Keep the architecture and deployment guides consistent with the code.
 
 ---
 
 ## Tips
 
-- Use the **image** for presentations and quick overviews
-- Use the **text markdown** for technical documentation
-- Both represent the same architecture, just different formats
-- The text version (ARCHITECTURE.md) has more detailed explanations
+- Use the dashboard screenshots in the root README for a quick visual overview.
+- Use `ARCHITECTURE.md` for data flow, table definitions, and query patterns.
 
 ---
 
-**Last Updated:** August 10, 2026
+**Last Updated:** November 4, 2026

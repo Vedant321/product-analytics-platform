@@ -1,6 +1,6 @@
 # Commerce Intelligence dashboard
 
-A React/TypeScript interface backed by a read-only FastAPI service over the existing Databricks Gold tables.
+A React and TypeScript interface built with Vite and Recharts, backed by a read-only FastAPI service over the existing Databricks Gold tables.
 
 ## Local development
 
@@ -48,4 +48,4 @@ The preview banner labels synthetic data. Forecasts do not use promotions, stock
 
 ## Deployment
 
-Build the React bundle with `npm run build` from `dashboard/web`. For local production-style serving, FastAPI can serve the built files from `dashboard/web/dist`. The root `vercel.json` routes the Vite frontend and FastAPI backend as separate services for public deployment. See the [live deployment plan](DEPLOYMENT.md) for the required Databricks service principal, permissions, and verification steps.
+Build the React bundle with `npm run build` from `dashboard/web`. For local production-style serving, FastAPI can serve the built files from `dashboard/web/dist`. The root `vercel.json` routes the Vite frontend and FastAPI backend as separate services on Vercel. The public API requires a Databricks OAuth service principal with read access to the three Gold tables; it does not use the local personal token or sample-data mode. See the [live deployment guide](DEPLOYMENT.md) for environment variables, permissions, and verification steps.
