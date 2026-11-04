@@ -48,4 +48,4 @@ The preview banner labels synthetic data. Forecasts do not use promotions, stock
 
 ## Deployment
 
-Build the React bundle with `npm run build` from `dashboard/web`. The FastAPI app serves that bundle from `dashboard/web/dist`, so a single Python service can host the UI and API. See [deployment options](DEPLOYMENT.md) for public access and Databricks-hosted access.
+Build the React bundle with `npm run build` from `dashboard/web`. For local production-style serving, FastAPI can serve the built files from `dashboard/web/dist`. The root `vercel.json` routes the Vite frontend and FastAPI backend as separate services for public deployment. See the [live deployment plan](DEPLOYMENT.md) for the required Databricks service principal, permissions, and verification steps.

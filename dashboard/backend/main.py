@@ -13,7 +13,7 @@ from threading import Lock
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.errors import PermissionDenied
 from databricks.sdk.service.sql import StatementState
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -23,6 +23,7 @@ CATALOG = os.getenv("DATABRICKS_CATALOG", "product_analytics")
 SCHEMA = os.getenv("DATABRICKS_SCHEMA", "ecommerce")
 WAREHOUSE = os.getenv("DATABRICKS_WAREHOUSE_ID", "b1660d805834aacd")
 DEMO_MODE = os.getenv("DEMO_MODE", "").lower() == "true"
+ON_VERCEL = bool(os.getenv("VERCEL"))
 TABLE_PREFIX = f"{CATALOG}.{SCHEMA}"
 TTL_SECONDS = 300
 _cache: tuple[float, dict] | None = None
@@ -68,6 +69,10 @@ def _number(value: object) -> float:
 
 
 def _load_live() -> dict:
+    if ON_VERCEL:
+        required = ("DATABRICKS_HOST", "DATABRICKS_CLIENT_ID", "DATABRICKS_CLIENT_SECRET", "DATABRICKS_WAREHOUSE_ID")
+        if any(not os.getenv(name) for name in required) or os.getenv("DATABRICKS_TOKEN"):
+            raise RuntimeError("Production Databricks OAuth configuration is incomplete or conflicts with a PAT")
     if "your-workspace" in os.getenv("DATABRICKS_HOST", ""):
         raise RuntimeError("DATABRICKS_HOST is still a placeholder. Use a valid Databricks profile.")
     client = WorkspaceClient()
@@ -170,6 +175,8 @@ def _load_demo() -> dict:
 
 def _data() -> dict:
     global _cache
+    if ON_VERCEL and DEMO_MODE:
+        raise RuntimeError("DEMO_MODE is disabled for the public deployment")
     with _lock:
         if _cache and time.monotonic() - _cache[0] < TTL_SECONDS:
             return _cache[1]
@@ -181,16 +188,23 @@ def _data() -> dict:
 def _service_error(exc: Exception) -> HTTPException:
     logger.exception("Dashboard data request failed")
     if isinstance(exc, PermissionDenied):
-        return HTTPException(status_code=503, detail="Databricks authentication failed. Your local token may have expired. Sign in again with a valid Databricks profile.")
+        detail = "Databricks authentication failed. Check the service principal permissions." if ON_VERCEL else "Databricks authentication failed. Your local token may have expired. Sign in again with a valid Databricks profile."
+        return HTTPException(status_code=503, detail=detail)
     if isinstance(exc, TimeoutError):
         return HTTPException(status_code=503, detail="The Databricks SQL warehouse did not respond in time. Try again after it starts.")
     return HTTPException(status_code=503, detail="Live data could not be loaded. Check the API terminal for the Databricks error.")
 
 
+def _cache_public_response(response: Response) -> None:
+    if ON_VERCEL:
+        response.headers["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=60"
+
+
 @app.get("/api/dashboard")
-def dashboard(days: int = Query(30, ge=14, le=90)) -> dict:
+def dashboard(response: Response, days: int = Query(30, ge=14, le=90)) -> dict:
     try:
         data = _data()
+        _cache_public_response(response)
         recent = data["daily"][-days:]
         previous = data["daily"][-2 * days : -days]
         return {
@@ -210,6 +224,7 @@ def dashboard(days: int = Query(30, ge=14, le=90)) -> dict:
 
 @app.get("/api/forecast")
 def forecast(
+    response: Response,
     metric: str = Query("revenue"),
     days: int = Query(60, ge=14, le=90),
     horizon: int = Query(7, ge=7, le=28),
@@ -218,7 +233,10 @@ def forecast(
     if metric not in METRICS or (model is not None and model not in MODELS):
         raise HTTPException(status_code=400, detail="Unsupported metric or model")
     try:
-        return {"mode": _data()["mode"], **compare_and_forecast(_data()["daily"], metric, days, horizon, model)}
+        data = _data()
+        result = compare_and_forecast(data["daily"], metric, days, horizon, model)
+        _cache_public_response(response)
+        return {"mode": data["mode"], **result}
     except Exception as exc:
         raise _service_error(exc) from exc
 

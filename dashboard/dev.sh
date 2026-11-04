@@ -27,7 +27,7 @@ if [[ ! -x "$python_bin" ]]; then
 fi
 if ! "$python_bin" -c "import fastapi, uvicorn, databricks.sdk, numpy, pandas, statsmodels" >/dev/null 2>&1; then
   echo "Installing Python API dependencies..."
-  uv pip install --python "$python_bin" -r "$dashboard_dir/backend/requirements.txt"
+  uv pip install --python "$python_bin" -r "$dashboard_dir/requirements.txt"
 fi
 if [[ ! -d "$web_dir/node_modules" ]]; then
   echo "Installing React dependencies..."

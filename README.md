@@ -28,7 +28,7 @@ Historical trend, projected values, and holdout MAE across forecasting methods.
 
 See [dashboard/README.md](dashboard/README.md) for local setup, data definitions, and deployment notes.
 
-For public access, the [hosting plan](dashboard/DEPLOYMENT.md) recommends a static site on Vercel or Cloudflare Pages built from a real Gold data snapshot. The local dashboard currently uses a live Databricks connection; public hosting has not been configured yet.
+For public access, the [hosting plan](dashboard/DEPLOYMENT.md) uses a live FastAPI service on Vercel to query Databricks Gold and compute forecasts when visitors change controls. Public hosting has not been configured yet.
 
 ---
 

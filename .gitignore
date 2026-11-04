@@ -56,6 +56,7 @@ _checkpoint/
 !dashboard/web/package.json
 !dashboard/web/package-lock.json
 !dashboard/web/tsconfig.json
+!vercel.json
 *.gz
 *.zip
 data/
