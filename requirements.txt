@@ -48,8 +48,3 @@ black==23.12.1
 flake8==6.1.0
 isort==5.13.2
 mypy==1.7.1
-
-# Statistical Analysis (for A/B testing)
-scipy==1.14.1
-statsmodels==0.14.4
-scikit-learn==1.5.2

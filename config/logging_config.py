@@ -1,5 +1,5 @@
 """
-Production-Grade Logging Configuration
+Logging configuration
 =======================================
 
 Standardized logging setup for all platform components.

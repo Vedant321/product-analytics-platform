@@ -4,7 +4,7 @@ Visual guide to the Product Analytics Platform architecture and data flow.
 
 ---
 
-## 📊 Full Architecture Overview
+## Full Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -12,7 +12,7 @@ Visual guide to the Product Analytics Platform architecture and data flow.
 │                         (Raw Data - Immutable)                           │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  📦 bronze_events                                                        │
+│   bronze_events                                                        │
 │  ├─ 109,950,743 rows                                                    │
 │  ├─ Raw eCommerce events from Kaggle                                    │
 │  ├─ Columns: event_time, event_type, product_id, category_id,          │
@@ -69,10 +69,10 @@ Visual guide to the Product Analytics Platform architecture and data flow.
 │                           └────────────────┘                           │
 │                                                                         │
 │  Key Features:                                                          │
-│  ✓ Surrogate keys (product_sk, user_sk, date_sk, category_sk)         │
-│  ✓ SCD Type 2 (dim_products, dim_users)                                │
-│  ✓ Point-in-time accurate joins                                        │
-│  ✓ Delta Lake: OPTIMIZE, Z-ORDER, Time Travel                          │
+│   Surrogate keys (product_sk, user_sk, date_sk, category_sk)         │
+│   SCD Type 2 (dim_products, dim_users)                                │
+│   Point-in-time accurate joins                                        │
+│   Delta Lake: OPTIMIZE, Z-ORDER, Time Travel                          │
 │                                                                         │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
@@ -84,32 +84,32 @@ Visual guide to the Product Analytics Platform architecture and data flow.
 │                   (Business Metrics - Dashboard Ready)                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  ✅ gold_daily_metrics (61 rows)                                        │
+│   gold_daily_metrics (61 rows)                                        │
 │  ├─ Grain: One row per date                                             │
 │  ├─ Metrics: DAU, revenue, conversions, AOV                             │
 │  ├─ Query Speed: 0.1s (vs 30s+ on silver)                               │
 │  └─ Use: Daily KPI dashboards, trend analysis                           │
 │                                                                          │
-│  🔲 gold_user_metrics (planned: ~5.3M rows)                             │
+│   gold_user_metrics (planned: ~5.3M rows)                             │
 │  ├─ Grain: One row per user                                             │
 │  ├─ Metrics: LTV, RFM scores, total purchases                           │
 │  └─ Use: Customer segmentation, retention analysis                      │
 │                                                                          │
-│  🔲 gold_product_performance (planned: ~207K rows)                      │
+│   gold_product_performance (planned: ~207K rows)                      │
 │  ├─ Grain: One row per product                                          │
 │  ├─ Metrics: Views, conversions, revenue per product                    │
 │  └─ Use: Product analytics, inventory decisions                         │
 │                                                                          │
-│  🔲 gold_category_performance (planned: ~130 rows)                      │
-│  🔲 gold_conversion_funnel (planned)                                    │
-│  🔲 gold_cohort_retention (planned)                                     │
+│   gold_category_performance (planned: ~130 rows)                      │
+│   gold_conversion_funnel (planned)                                    │
+│   gold_cohort_retention (planned)                                     │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔄 Data Flow: Bronze → Silver → Gold
+## Data Flow: Bronze → Silver → Gold
 
 ### **Step 1: Bronze Ingestion**
 ```
@@ -148,7 +148,7 @@ Gold Layer (business metrics)
 
 ---
 
-## 🎯 Gold Layer: gold_daily_metrics Explained
+## Gold Layer: gold_daily_metrics Explained
 
 ### **The Transformation**
 
@@ -211,7 +211,7 @@ Speed-up: 300x faster
 
 ---
 
-## 🔗 Table Relationships
+## Table Relationships
 
 ### **Star Schema (Silver Layer)**
 
@@ -267,7 +267,7 @@ gold_product_performance (planned)
 
 ---
 
-## 📁 File Structure
+## File Structure
 
 ```
 product-analytics-platform/
@@ -284,7 +284,7 @@ product-analytics-platform/
 │   │   └── silver_dimensions_incremental.py  # SCD Type 2 updates
 │   │
 │   └── gold/
-│       └── gold_daily_metrics.py             # ✅ Silver → Gold (built)
+│       └── gold_daily_metrics.py             #  Silver → Gold (built)
 │
 ├── docs/
 │   ├── ARCHITECTURE.md                       # ← You are here
@@ -296,7 +296,7 @@ product-analytics-platform/
 
 ---
 
-## 🎨 Design Decisions
+## Design Decisions
 
 ### **Why Star Schema (Not Snowflake)?**
 - **Fewer joins** = faster queries
@@ -323,7 +323,7 @@ product-analytics-platform/
 
 ---
 
-## 🔢 Current Data Volumes
+## Current Data Volumes
 
 | Table | Rows | Size | Update Frequency |
 |-------|------|------|------------------|
@@ -342,16 +342,16 @@ product-analytics-platform/
 
 ---
 
-## 🚀 Performance Optimizations
+## Performance Optimizations
 
 ### **Applied to All Tables:**
-- ✅ Delta Lake format
-- ✅ OPTIMIZE (file compaction)
-- ✅ Z-ORDER (data clustering)
-- ✅ Auto-Optimize (optimizeWrite + autoCompact)
-- ✅ Deletion Vectors (efficient updates)
-- ✅ zstd Compression
-- ✅ Time Travel enabled
+-  Delta Lake format
+-  OPTIMIZE (file compaction)
+-  Z-ORDER (data clustering)
+-  Auto-Optimize (optimizeWrite + autoCompact)
+-  Deletion Vectors (efficient updates)
+-  zstd Compression
+-  Time Travel enabled
 
 ### **Specific Optimizations:**
 ```
@@ -363,7 +363,7 @@ dim_users:        Z-ORDER BY (user_sk, effective_from)
 
 ---
 
-## 📊 Query Patterns
+## Query Patterns
 
 ### **Common Dashboard Queries (Use Gold)**
 
@@ -398,10 +398,10 @@ GROUP BY ALL;
 
 ---
 
-## 🎯 Gold Layer Roadmap
+## Gold Layer Roadmap
 
 ```
-Phase 1: Daily Metrics ✅
+Phase 1: Daily Metrics
 └─ gold_daily_metrics (61 rows)
 
 Phase 2: User Analytics
@@ -418,7 +418,7 @@ Phase 4: Advanced Analytics
 
 ---
 
-## 🔍 How to Navigate
+## How to Navigate
 
 1. **Start with Bronze** if you need raw, unprocessed data
 2. **Use Silver** for detailed analysis with joins
@@ -431,7 +431,7 @@ Phase 4: Advanced Analytics
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
 - [Silver Layer Architecture](SILVER_LAYER_ARCHITECTURE.md) - Star schema details
 - [Dimensions Guide](DIMENSIONS_COMPLETE_GUIDE.md) - SCD Type 2 implementation
@@ -440,4 +440,4 @@ Phase 4: Advanced Analytics
 ---
 
 **Last Updated:** August 10, 2026  
-**Platform Version:** Bronze ✅ | Silver ✅ | Gold Phase 1 ✅
+**Platform Version:** Bronze | Silver | Gold Phase 1

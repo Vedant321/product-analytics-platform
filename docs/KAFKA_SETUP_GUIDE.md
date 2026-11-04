@@ -73,9 +73,9 @@ docker exec -it $(docker ps -q -f name=kafka) kafka-topics \
 ```
 
 **What just happened:**
-- ✅ Zookeeper started (Kafka's coordination service)
-- ✅ Kafka broker started (message bus)
-- ✅ Topic created with 3 partitions (allows 3 parallel consumers)
+-  Zookeeper started (Kafka's coordination service)
+-  Kafka broker started (message bus)
+-  Topic created with 3 partitions (allows 3 parallel consumers)
 
 ---
 

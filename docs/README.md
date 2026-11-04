@@ -4,7 +4,7 @@ Visual diagrams for the Product Analytics Platform.
 
 ---
 
-## 📊 Available Diagrams
+## Available Diagrams
 
 ### 1. Full Platform Architecture (Image)
 
@@ -45,7 +45,7 @@ Visual diagrams for the Product Analytics Platform.
 
 ---
 
-## 🎨 Diagram Legend
+## Diagram Legend
 
 ### Bronze Layer (Raw Data)
 - Append-only storage
@@ -69,7 +69,7 @@ Visual diagrams for the Product Analytics Platform.
 
 ---
 
-## 📁 File Organization
+## File Organization
 
 ```
 docs/
@@ -82,7 +82,7 @@ docs/
 
 ---
 
-## 🔄 Keeping Diagrams Updated
+## Keeping Diagrams Updated
 
 When updating the architecture:
 
@@ -93,7 +93,7 @@ When updating the architecture:
 
 ---
 
-## 💡 Tips
+## Tips
 
 - Use the **image** for presentations and quick overviews
 - Use the **text markdown** for technical documentation

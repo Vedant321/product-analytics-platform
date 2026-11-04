@@ -1,6 +1,6 @@
 # Silver Layer Architecture - Product Analytics Platform
 
-## 🎯 Purpose
+## Purpose
 
 The Silver layer transforms raw Bronze data into **analytics-ready**, **dimensional** datasets following enterprise Lakehouse patterns. This layer implements:
 
@@ -12,7 +12,7 @@ The Silver layer transforms raw Bronze data into **analytics-ready**, **dimensio
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 BRONZE LAYER (Raw)
@@ -38,7 +38,7 @@ SILVER LAYER (Dimensional Star Schema)
 
 ---
 
-## 📊 Table Definitions
+## Table Definitions
 
 ### 1. Fact Tables
 
@@ -437,7 +437,7 @@ Laptop          | Laptop Bag     | purchase_together| 4.1  | 0.55
 
 ---
 
-## 🔄 Processing Strategy
+## Processing Strategy
 
 ### Incremental vs. Full Refresh
 
@@ -455,47 +455,47 @@ Laptop          | Laptop Bag     | purchase_together| 4.1  | 0.55
 
 ---
 
-## 📝 Implementation Sequence
+## Implementation Sequence
 
 ### Phase 1: Core Dimensional Model (MVP)
-1. ✅ Build `dim_date` (static, run once)
-2. ✅ Build `dim_categories` (extract from Bronze)
-3. ✅ Build `dim_products` (SCD Type 2 initial load)
-4. ✅ Build `dim_users` (SCD Type 2 initial load)
-5. ✅ Build `fact_events` (with surrogate keys)
-6. ✅ Build `fact_sessions` (aggregated from events)
+1.  Build `dim_date` (static, run once)
+2.  Build `dim_categories` (extract from Bronze)
+3.  Build `dim_products` (SCD Type 2 initial load)
+4.  Build `dim_users` (SCD Type 2 initial load)
+5.  Build `fact_events` (with surrogate keys)
+6.  Build `fact_sessions` (aggregated from events)
 
 ### Phase 2: Feature Engineering
-7. ✅ Build `user_behavioral_features` (RFM + rolling windows)
-8. ✅ Build `product_performance_features` (metrics + trends)
-9. ✅ Build `product_affinity` (market basket analysis)
+7.  Build `user_behavioral_features` (RFM + rolling windows)
+8.  Build `product_performance_features` (metrics + trends)
+9.  Build `product_affinity` (market basket analysis)
 
 ### Phase 3: Data Quality & Optimization
-10. ✅ Add data quality checks
-11. ✅ Implement incremental merge logic
-12. ✅ Add Z-ORDER optimization
-13. ✅ Document lineage
+10.  Add data quality checks
+11.  Implement incremental merge logic
+12.  Add Z-ORDER optimization
+13.  Document lineage
 
 ---
 
-## 🎯 Success Metrics
+## Success Metrics
 
 **Technical:**
-- ✅ All tables follow star schema
-- ✅ SCD Type 2 correctly tracks changes
-- ✅ Surrogate keys enable fast joins
-- ✅ Incremental processing works correctly
-- ✅ Data quality checks pass
+-  All tables follow star schema
+-  SCD Type 2 correctly tracks changes
+-  Surrogate keys enable fast joins
+-  Incremental processing works correctly
+-  Data quality checks pass
 
 **Portfolio:**
-- ✅ Demonstrates dimensional modeling expertise
-- ✅ Shows understanding of SCD patterns
-- ✅ Exhibits feature engineering skills
-- ✅ Proves production-grade coding
+-  Demonstrates dimensional modeling expertise
+-  Shows understanding of SCD patterns
+-  Exhibits feature engineering skills
+-  Proves production-grade coding
 
 ---
 
-## 📚 Learning Resources
+## Learning Resources
 
 **Concepts to Research:**
 - Kimball Star Schema methodology

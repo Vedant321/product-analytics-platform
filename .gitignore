@@ -53,6 +53,9 @@ _checkpoint/
 *.csv
 *.parquet
 *.json
+!dashboard/web/package.json
+!dashboard/web/package-lock.json
+!dashboard/web/tsconfig.json
 *.gz
 *.zip
 data/
@@ -90,6 +93,9 @@ Thumbs.db
 .coverage
 htmlcov/
 .tox/
+node_modules/
+.venv/
+*.tsbuildinfo
 
 # Airflow
 airflow.db

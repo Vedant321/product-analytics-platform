@@ -4,7 +4,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution Across All Layers
+# DBTITLE 1, INVESTIGATION: Check Brand Distribution Across All Layers
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 1: Check brand distribution in BRONZE layer
@@ -22,7 +22,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution in SILVER Layer
+# DBTITLE 1, INVESTIGATION: Check Brand Distribution in SILVER Layer
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 2: Check brand distribution in SILVER dim_products
@@ -40,7 +40,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Check Brand Distribution in GOLD Layer
+# DBTITLE 1, INVESTIGATION: Check Brand Distribution in GOLD Layer
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 3: Check brand distribution in GOLD product_performance
@@ -59,7 +59,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Cross-Layer Brand Comparison
+# DBTITLE 1, INVESTIGATION: Cross-Layer Brand Comparison
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 4: Compare brand coverage across layers
@@ -80,9 +80,9 @@
 # MAGIC )
 # MAGIC SELECT 
 # MAGIC     COALESCE(b.brand, s.brand, g.brand) as brand,
-# MAGIC     CASE WHEN b.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_bronze,
-# MAGIC     CASE WHEN s.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_silver,
-# MAGIC     CASE WHEN g.brand IS NOT NULL THEN '✅' ELSE '❌' END as in_gold
+# MAGIC     CASE WHEN b.brand IS NOT NULL THEN 'present' ELSE 'missing' END as in_bronze,
+# MAGIC     CASE WHEN s.brand IS NOT NULL THEN 'present' ELSE 'missing' END as in_silver,
+# MAGIC     CASE WHEN g.brand IS NOT NULL THEN 'present' ELSE 'missing' END as in_gold
 # MAGIC FROM bronze_brands b
 # MAGIC FULL OUTER JOIN silver_brands s ON b.brand = s.brand
 # MAGIC FULL OUTER JOIN gold_brands g ON COALESCE(b.brand, s.brand) = g.brand
@@ -91,7 +91,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Check fact_events to silver_dim_products JOIN
+# DBTITLE 1, INVESTIGATION: Check fact_events to silver_dim_products JOIN
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 5: Check if fact_events has orphaned product_sk values
@@ -116,7 +116,7 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,🔍 INVESTIGATION: Sample Orphaned Products (if any)
+# DBTITLE 1, INVESTIGATION: Sample Orphaned Products (if any)
 # MAGIC %sql
 # MAGIC -- ============================================================================
 # MAGIC -- DIAGNOSTIC QUERY 6: Show sample orphaned products
@@ -452,4 +452,4 @@ else:
     logger.info("  - Old version: effective_to updated to yesterday, is_current = FALSE")
     logger.info("  - New version: new product_sk, version incremented, is_current = TRUE")
     logger.info("  - Price/brand updated in new version")
-    logger.info("  - No data loss - full history preserved!")
+    logger.info("  - Historical rows retained")

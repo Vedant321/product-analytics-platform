@@ -91,7 +91,7 @@ query = parsed_stream.writeStream \
     .trigger(processingTime=TRIGGER_INTERVAL) \
     .table(BRONZE_TABLE)
 
-logger.info("Streaming query started!")
+logger.info("Streaming query started")
 logger.info(f"Writing to: {BRONZE_TABLE} (unified bronze layer)")
 logger.info(f"Checkpoint: {CHECKPOINT_LOCATION}")
 logger.info(f"Trigger interval: {TRIGGER_INTERVAL}")

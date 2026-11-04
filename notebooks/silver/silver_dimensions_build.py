@@ -38,20 +38,20 @@ WITH dim_date:
   JOIN dim_date d ON f.date_key = d.date_key;  -- Pre-computed!
 
 Benefits:
-✅ Faster queries (no date math)
-✅ Consistent definitions (everyone's "weekend" is the same)
-✅ Integer joins (date_key=20191101) faster than DATE joins
-✅ Fiscal calendar support (if needed)
+ Faster queries (no date math)
+ Consistent definitions (everyone's "weekend" is the same)
+ Integer joins (date_key=20191101) faster than DATE joins
+ Fiscal calendar support (if needed)
 
 DECISION #2: Why date_key as INTEGER (YYYYMMDD)?
 ------------------------------------------------
 Instead of DATE type, we use INT: 20191101, 20191102, etc.
 
 Why?
-✅ Integer joins are faster than DATE joins
-✅ Human-readable (20191101 = November 1, 2019)
-✅ Easy to filter (WHERE date_key >= 20191101 AND date_key < 20191201)
-✅ Standard data warehouse pattern (Kimball methodology)
+ Integer joins are faster than DATE joins
+ Human-readable (20191101 = November 1, 2019)
+ Easy to filter (WHERE date_key >= 20191101 AND date_key < 20191201)
+ Standard data warehouse pattern (Kimball methodology)
 
 DECISION #3: Should this be SCD Type 2?
 ---------------------------------------
@@ -75,7 +75,7 @@ logger.info("BUILDING dim_date - CALENDAR DIMENSION (STATIC)")
 print("="*80)
 
 # Determine date range from Bronze data
-logger.info("\n Step 1: Determine date range from Bronze data...")
+logger.info("\nStep 1: Determine date range from Bronze data...")
 bronze_table = config.get_table('bronze_events')
 date_range = spark.table(bronze_table).select(
     F.min("event_date").alias("min_date"),
@@ -92,7 +92,7 @@ end_date = datetime.strptime(str(max_date), '%Y-%m-%d') + timedelta(days=365)
 
 logger.info("\nStep 2: Generate calendar with 1-year buffer...")
 logger.info(f"   Calendar range: {start_date.date()} to {end_date.date()}")
-logger.info("   Why buffer? Allows for future-dated analysis without rebuilding")
+logger.info("   Date range includes a buffer for future records")
 
 # Generate all dates
 date_list = []
@@ -150,7 +150,7 @@ date_schema = StructType([
 
 df_date = spark.createDataFrame(date_list, schema=date_schema)
 
-logger.info("\n Step 3: Preview dim_date:")
+logger.info("\nStep 3: Preview dim_date:")
 df_date.orderBy("date_key").show(10)
 
 logger.info("\nStep 4: Write to Delta table...")
@@ -161,11 +161,11 @@ df_date.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(date_table)
 
-logger.info("\n dim_date created!")
+logger.info("\ndim_date created")
 logger.info(f"   Table: {date_table}")
 logger.info(f"   Rows: {df_date.count():,}")
 logger.info(f"   Date Range: {min_date} to {end_date.date()}")
-logger.info("\n This dimension is STATIC - only needs to be built ONCE!")
+logger.info("\nDate dimension is static")
 logger.info("   Re-run only if you need to extend the date range.")
 
 # COMMAND ----------
@@ -188,10 +188,10 @@ DECISION #1: Why split category hierarchy?
 Bronze has: category_code = "electronics.smartphone.apple"
 
 We could keep it as one string, but splitting into L1/L2/L3 enables:
-✅ Drill-down analysis (electronics → smartphone → apple)
-✅ Roll-up aggregation (all smartphone revenue, regardless of brand)
-✅ Hierarchy queries (all sub-categories under electronics)
-✅ Consistent depth (some products only have L1, others have L1.L2.L3)
+ Drill-down analysis (electronics → smartphone → apple)
+ Roll-up aggregation (all smartphone revenue, regardless of brand)
+ Hierarchy queries (all sub-categories under electronics)
+ Consistent depth (some products only have L1, others have L1.L2.L3)
 
 DECISION #2: Should this be SCD Type 2?
 ---------------------------------------
@@ -209,9 +209,9 @@ frequently, we'd use SCD Type 2. But for just hierarchy, simple is fine.
 DECISION #3: Surrogate key needed?
 ----------------------------------
 Yes! Even simple dimensions need surrogate keys for:
-✅ Fast integer joins (vs string joins on category path)
-✅ Future-proofing (if we add SCD Type 2 later)
-✅ Consistency (every dimension has SK pattern)
+ Fast integer joins (vs string joins on category path)
+ Future-proofing (if we add SCD Type 2 later)
+ Consistency (every dimension has SK pattern)
 """
 
 from pyspark.sql import functions as F
@@ -221,7 +221,7 @@ print("="*80)
 logger.info("BUILDING dim_categories - SIMPLE DIMENSION")
 print("="*80)
 
-logger.info("\n📂 Step 1: Extract category hierarchy from Bronze...")
+logger.info("\nStep 1: Extract category hierarchy from Bronze...")
 
 bronze_table = config.get_table('bronze_events')
 
@@ -259,7 +259,7 @@ logger.info("   Sample category hierarchy:")
 df_categories_split.filter(F.col("category_depth") == 3).show(5, truncate=False)
 
 # Handle nulls (events with no category)
-logger.info("\n🧹 Step 3: Handle null categories...")
+logger.info("\nStep 3: Handle null categories...")
 
 df_categories_clean = df_categories_split \
     .withColumn("category_l1", 
@@ -270,7 +270,7 @@ df_categories_clean = df_categories_split \
                  .otherwise(F.col("category_full_path")))
 
 # Generate surrogate keys using row_number() - deterministic ordering
-logger.info("\n🔑 Step 4: Generate surrogate keys (category_sk)...")
+logger.info("\nStep 4: Generate surrogate keys (category_sk)...")
 
 window_spec = Window.orderBy("category_full_path")
 
@@ -289,11 +289,11 @@ df_categories_final = df_categories_clean \
 
 logger.info(f"   Generated {df_categories_final.count():,} category surrogate keys")
 
-logger.info("\n Step 5: Preview dim_categories:")
+logger.info("\nStep 5: Preview dim_categories:")
 df_categories_final.orderBy("category_sk").show(10, truncate=False)
 
 # Show category depth distribution
-logger.info("\n Category depth distribution:")
+logger.info("\nCategory depth distribution:")
 df_categories_final.groupBy("category_depth").count().orderBy("category_depth").show()
 
 logger.info("\nStep 6: Write to Delta table...")
@@ -304,10 +304,10 @@ df_categories_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(category_table)
 
-logger.info("\n dim_categories created!")
+logger.info("\ndim_categories created")
 logger.info(f"   Table: {category_table}")
 logger.info(f"   Rows: {df_categories_final.count():,}")
-logger.info("\n This is a SIMPLE dimension - extract unique values, no history tracking")
+logger.info("\nThis is a SIMPLE dimension - extract unique values, no history tracking")
 logger.info("   Rebuild if categories change (rare in production)")
 
 # COMMAND ----------
@@ -351,7 +351,7 @@ Now when we query Nov 10 sales:
   JOIN products p ON e.product_id = p.product_id
   WHERE event_date = '2019-11-10';
 
-RESULT: iPhone 11, $699, 1 unit  ❌ WRONG! It was $799 on Nov 10!
+RESULT: iPhone 11, $699, 1 unit   WRONG! It was $799 on Nov 10!
 
 **THE SOLUTION: SCD Type 2**
 
@@ -369,7 +369,7 @@ Now we join on BOTH product_id AND date:
     AND e.event_date < p.effective_to
   WHERE e.event_date = '2019-11-10';
 
-RESULT: iPhone 11, $799, 1 unit  ✅ CORRECT!
+RESULT: iPhone 11, $799, 1 unit   CORRECT!
 
 ==============================================================================
 DECISION #2: What Makes a "New Version"?
@@ -377,12 +377,12 @@ DECISION #2: What Makes a "New Version"?
 
 Not every field change creates a new version. We track changes to:
 
-✅ Track these (Type 2):
+ Track these (Type 2):
   - price (changes affect revenue calculations)
   - brand (business attribute, might change)
   - category_id (product might be recategorized)
 
-❌ Don't track these (just update):
+ Don't track these (just update):
   - product_name typo fixes (cosmetic)
   - display_order (UI concern, not analytical)
   
@@ -394,8 +394,8 @@ DECISION #3: Surrogate Keys (product_sk)
 
 Why not just use product_id?
 
-❌ product_id = 12345 appears in MULTIPLE rows (one per version)
-✅ product_sk = 1001, 1002, 1003... (unique per version)
+ product_id = 12345 appears in MULTIPLE rows (one per version)
+ product_sk = 1001, 1002, 1003... (unique per version)
 
 Fact table joins:
   fact_events.product_sk → dim_products.product_sk
@@ -411,13 +411,13 @@ DECISION #4: effective_to = 9999-12-31 (The "End of Time" Pattern)
 
 Why 9999-12-31 instead of NULL?
 
-✅ 9999-12-31:
+ 9999-12-31:
   - Range queries work: event_date < effective_to
   - No NULL handling needed
   - Standard data warehouse pattern
   - "This version is effective until the end of time"
 
-❌ NULL:
+ NULL:
   - Need: event_date < effective_to OR effective_to IS NULL
   - Slower queries
   - More complex logic
@@ -446,7 +446,7 @@ from pyspark.sql.window import Window
 print("="*80)
 logger.info("BUILDING dim_products - SCD TYPE 2 (SLOWLY CHANGING DIMENSION)")
 print("="*80)
-logger.info("\n🎓 This is THE most important pattern in data warehousing!")
+logger.info("\nBuilding product history with SCD Type 2")
 logger.info("   We're tracking HISTORY - every version of every product.\n")
 
 print("-"*80)
@@ -499,7 +499,7 @@ df_products_enriched = df_products_latest \
 logger.info("    Products enriched with category_sk")
 
 # Clean up brands and handle nulls
-logger.info("\n🧹 Step 3: Clean up product attributes...")
+logger.info("\nStep 3: Clean up product attributes...")
 
 df_products_clean = df_products_enriched \
     .withColumn("brand_clean",
@@ -517,7 +517,7 @@ df_products_clean = df_products_enriched \
 logger.info("    Brands normalized, nulls handled, negative prices fixed")
 
 # Get the earliest event date for effective_from
-logger.info("\n Step 4: Set effective dates (SCD Type 2 metadata)...")
+logger.info("\nStep 4: Set effective dates (SCD Type 2 metadata)...")
 
 min_date = spark.table(bronze_table).selectExpr("min(event_date) as min_date").collect()[0]['min_date']
 logger.info(f"   Earliest event date: {min_date}")
@@ -534,8 +534,8 @@ df_products_versioned = df_products_clean \
 logger.info("    SCD Type 2 metadata added")
 
 # Generate surrogate keys
-logger.info("\n🔑 Step 5: Generate surrogate keys (product_sk)...")
-logger.info("   Why surrogate keys? So each VERSION has a unique ID!")
+logger.info("\nStep 5: Generate surrogate keys (product_sk)...")
+logger.info("   Surrogate keys identify individual product versions")
 logger.info("   product_id=12345 might have product_sk=1001, 1002, 1003 (3 versions)\n")
 
 window_spec_sk = Window.orderBy("product_id")
@@ -561,10 +561,10 @@ df_products_final = df_products_versioned \
 
 logger.info(f"   Generated {df_products_final.count():,} surrogate keys")
 
-logger.info("\n Step 6: Preview dim_products:")
+logger.info("\nStep 6: Preview dim_products:")
 df_products_final.orderBy("product_sk").show(10, truncate=False)
 
-logger.info("\n Sample products with multiple versions (after future updates):")
+logger.info("\nSample products with multiple versions (after future updates):")
 logger.info("   (Right now all products are version 1 - we'll add versioning logic later)")
 df_products_final.filter(F.col("version_number") > 1).show(5, truncate=False)
 
@@ -576,20 +576,20 @@ df_products_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(product_table)
 
-logger.info("\n dim_products created!")
+logger.info("\ndim_products created")
 logger.info(f"   Table: {product_table}")
 logger.info(f"   Rows: {df_products_final.count():,}")
 logger.info(f"   Current versions: {df_products_final.filter(F.col('is_current_version')).count():,}")
 logger.info(f"   Historical versions: {df_products_final.filter(~F.col('is_current_version')).count():,}")
 
-logger.info("\n🎓 KEY LEARNINGS:")
+logger.info("\nProduct dimension summary:")
 logger.info("   1. product_sk = surrogate key (unique per VERSION)")
 logger.info("   2. product_id = business key (same across versions)")
 logger.info("   3. effective_from/to = date range when this version was active")
 logger.info("   4. is_current_version = TRUE for latest version")
 logger.info("   5. This is INITIAL LOAD - all products are version 1")
 logger.info("   6. Future: When price changes, we'll INSERT new row with version 2")
-logger.info("\n Next: We'll build incremental SCD Type 2 processing!")
+logger.info("\nInitial product dimension load complete")
 
 # COMMAND ----------
 
@@ -640,7 +640,7 @@ Now we can answer:
 - What did they buy as engaged? (join to user_sk=1002)
 - What do they buy now as power_user? (join to user_sk=1003)
 
-✅ User evolution tracked!
+ User evolution tracked!
 
 ==============================================================================
 DECISION #2: What Defines User Segments?
@@ -703,7 +703,7 @@ from pyspark.sql.window import Window
 print("="*80)
 logger.info("BUILDING dim_users - SCD TYPE 2 (BEHAVIORAL SEGMENTS)")
 print("="*80)
-logger.info("\n👥 Tracking user evolution: casual → engaged → power_user\n")
+logger.info("\nTracking user evolution: casual → engaged → power_user\n")
 
 print("-"*80)
 logger.info("INITIAL LOAD STRATEGY")
@@ -734,7 +734,7 @@ user_count = df_user_activity.count()
 logger.info(f"   Found {user_count:,} unique users in Bronze")
 
 # Calculate user segment based on activity
-logger.info("\n Step 2: Calculate behavioral segments...")
+logger.info("\nStep 2: Calculate behavioral segments...")
 logger.info("   Segments: casual (1-5 events), engaged (6-20 events), power_user (21+ events)")
 
 df_users_segmented = df_user_activity \
@@ -749,11 +749,11 @@ df_users_segmented = df_user_activity \
 
 logger.info("    Segments calculated")
 
-logger.info("\n Segment distribution:")
+logger.info("\nSegment distribution:")
 df_users_segmented.groupBy("user_segment").count().orderBy(F.desc("count")).show()
 
 # Add SCD Type 2 metadata
-logger.info("\n Step 3: Add SCD Type 2 metadata (effective dates, versioning)...")
+logger.info("\nStep 3: Add SCD Type 2 metadata (effective dates, versioning)...")
 logger.info("   All users start at version 1 with effective_from = first_seen_date")
 
 df_users_versioned = df_users_segmented \
@@ -765,8 +765,8 @@ df_users_versioned = df_users_segmented \
 logger.info("    SCD Type 2 metadata added")
 
 # Generate surrogate keys
-logger.info("\n🔑 Step 4: Generate surrogate keys (user_sk)...")
-logger.info("   Why? So each user SEGMENT VERSION gets a unique ID!")
+logger.info("\nStep 4: Generate surrogate keys (user_sk)...")
+logger.info("   Surrogate keys identify individual user segment versions")
 logger.info("   user_id=12345 might have user_sk=5001 (casual), 5002 (engaged), 5003 (power_user)\n")
 
 window_spec = Window.orderBy("user_id")
@@ -798,7 +798,7 @@ df_users_final = df_users_versioned \
 
 logger.info(f"   Generated {df_users_final.count():,} surrogate keys")
 
-logger.info("\n Step 5: Preview dim_users:")
+logger.info("\nStep 5: Preview dim_users:")
 df_users_final.orderBy(F.desc("total_events")).show(10, truncate=False)
 
 logger.info("\nStep 6: Write to Delta table...")
@@ -809,13 +809,13 @@ df_users_final.write.format("delta") \
     .option("overwriteSchema", "true") \
     .saveAsTable(user_table)
 
-logger.info("\n dim_users created!")
+logger.info("\ndim_users created")
 logger.info(f"   Table: {user_table}")
 logger.info(f"   Rows: {df_users_final.count():,}")
 logger.info(f"   Current versions: {df_users_final.filter(F.col('is_current_version')).count():,}")
 logger.info(f"   Historical versions: {df_users_final.filter(~F.col('is_current_version')).count():,}")
 
-logger.info("\n Segment breakdown:")
+logger.info("\nSegment breakdown:")
 df_users_final.groupBy("user_segment") \
     .agg(
         F.count("*").alias("user_count"),
@@ -825,14 +825,14 @@ df_users_final.groupBy("user_segment") \
     .orderBy(F.desc("user_count")) \
     .show()
 
-logger.info("\n🎓 KEY LEARNINGS:")
+logger.info("\nUser dimension summary:")
 logger.info("   1. user_sk = surrogate key (unique per SEGMENT VERSION)")
 logger.info("   2. user_id = business key (same user, different segments over time)")
 logger.info("   3. user_segment tracks behavioral evolution (casual → engaged → power_user)")
 logger.info("   4. effective_from = user's first_seen_date (when they started)")
 logger.info("   5. This is INITIAL LOAD - all users are version 1")
 logger.info("   6. Future: When segment changes, INSERT new row with new segment")
-logger.info("\n Next: Build fact tables that JOIN to these dimensions via surrogate keys!")
+logger.info("\nUser dimension load complete")
 
 # COMMAND ----------
 
@@ -889,11 +889,11 @@ GROUP BY d.year, d.month_name, p.brand, c.category_level_1;
 ```
 
 **Pros:**
-✅ Only 3-4 joins max
-✅ dim_products already has category_sk (denormalized)
-✅ Fast query performance (fewer joins = less shuffle in Spark)
-✅ BI tool friendly
-✅ Clear relationships
+ Only 3-4 joins max
+ dim_products already has category_sk (denormalized)
+ Fast query performance (fewer joins = less shuffle in Spark)
+ BI tool friendly
+ Clear relationships
 
 **Why Not Snowflake Schema?**
 
@@ -916,10 +916,10 @@ JOIN dim_category_hierarchy h ON c.parent_category_sk = h.category_sk  ← Extra
 ```
 
 **Cost of Snowflake:**
-❌ 6-8 joins instead of 3-4
-❌ Each join = shuffle in Spark (expensive!)
-❌ Harder for analysts to write queries
-❌ Minimal storage savings (Delta compression handles redundancy)
+ 6-8 joins instead of 3-4
+ Each join = shuffle in Spark (expensive!)
+ Harder for analysts to write queries
+ Minimal storage savings (Delta compression handles redundancy)
 
 **When to use Snowflake:**
 - Deep hierarchies (10+ levels)
@@ -940,7 +940,7 @@ FROM fact_events f
 JOIN dim_products p ON f.product_id = p.product_id  ← Gets CURRENT price!
 ```
 
-Result: Nov 10 event shows Nov 20 price ❌
+Result: Nov 10 event shows Nov 20 price
 
 **GOOD (Type 2 Join):**
 ```sql
@@ -951,7 +951,7 @@ JOIN dim_products p
   AND f.event_date < p.effective_to  ← Gets HISTORICAL price!
 ```
 
-Result: Nov 10 event shows Nov 10 price ✅
+Result: Nov 10 event shows Nov 10 price
 
 **EVEN BETTER (Precompute product_sk in fact table):**
 
@@ -970,16 +970,16 @@ DECISION #3: Fact Table Grain
 
 Alternatives considered:
 
-❌ One row per user per day:
+ One row per user per day:
   - Loses event-level detail
   - Can't answer "What time of day do power users shop?"
   - Pre-aggregated = less flexible
 
-❌ One row per user per product per day:
+ One row per user per product per day:
   - Still loses event-level detail
   - Can't track event sequences
 
-✅ One row per event:
+ One row per event:
   - Maximum flexibility
   - Can aggregate any way we want
   - Can track clickstream sequences
@@ -1014,11 +1014,11 @@ Next: Build fact_events with all surrogate key lookups!
 print("="*80)
 logger.info("FACT TABLE DESIGN COMPLETE")
 print("="*80)
-logger.info("\n📐 Architecture: STAR SCHEMA")
+logger.info("\nArchitecture: STAR SCHEMA")
 logger.info("   Grain: One row per event")
 logger.info("   Joins: 3-4 (vs 6-8 for snowflake)")
 logger.info("   Performance: Optimized for analytics\n")
-logger.info(" Next: Build fact_events with surrogate key lookups!")
+logger.info("Fact table requires surrogate key lookups")
 
 # COMMAND ----------
 
@@ -1040,23 +1040,23 @@ STRATEGY:
 DEMONSTRATING DELTA/LAKEHOUSE FEATURES:
 ==============================================================================
 
-✅ FEATURE 1: ACID Transactions
+ FEATURE 1: ACID Transactions
    - Multiple joins, transformations = ONE atomic write
    - Either all data lands or none (no partial writes)
 
-✅ FEATURE 2: Schema Evolution
+ FEATURE 2: Schema Evolution
    - Can add columns later without breaking existing queries
    - .option("mergeSchema", "true")
 
-✅ FEATURE 3: Time Travel (coming next)
+ FEATURE 3: Time Travel (coming next)
    - Query historical versions
    - Audit trail built-in
 
-✅ FEATURE 4: OPTIMIZE + Z-ORDER (coming next)
+ FEATURE 4: OPTIMIZE + Z-ORDER (coming next)
    - Compact small files
    - Co-locate related data for faster queries
 
-✅ FEATURE 5: MERGE for incremental (coming next)
+ FEATURE 5: MERGE for incremental (coming next)
    - Upserts, deduplication
    - CDC patterns
 """
@@ -1067,8 +1067,8 @@ from pyspark.sql.window import Window
 print("="*80)
 logger.info("BUILDING fact_events - INITIAL LOAD")
 print("="*80)
-logger.info("\n Grain: ONE ROW PER EVENT")
-logger.info("🔑 Strategy: Lookup all surrogate keys from dimensions\n")
+logger.info("\nGrain: ONE ROW PER EVENT")
+logger.info(" Strategy: Lookup all surrogate keys from dimensions\n")
 
 # Read Bronze events
 logger.info(" Step 1: Read Bronze events...")
@@ -1079,7 +1079,7 @@ event_count = df_events.count()
 logger.info(f"   Found {event_count:,} events in Bronze")
 
 # Lookup date_sk
-logger.info("\n Step 2: Lookup date_sk from dim_date...")
+logger.info("\nStep 2: Lookup date_sk from dim_date...")
 df_dates = spark.table("product_analytics.ecommerce.silver_dim_date")
 
 df_events_with_date = df_events.alias("e").join(
@@ -1094,7 +1094,7 @@ df_events_with_date = df_events.alias("e").join(
 logger.info("    date_sk joined")
 
 # Lookup user_sk (current version only for initial load)
-logger.info("\n👥 Step 3: Lookup user_sk from dim_users...")
+logger.info("\nStep 3: Lookup user_sk from dim_users...")
 logger.info("   Note: For initial load, we use current version only")
 logger.info("   Future: For incremental, we'll do SCD Type 2 date range join")
 
@@ -1114,8 +1114,8 @@ df_events_with_user = df_events_with_date.alias("e").join(
 logger.info("    user_sk joined")
 
 # Lookup product_sk (SCD Type 2: date range join)
-logger.info("\n Step 4: Lookup product_sk from dim_products (SCD Type 2 join)...")
-logger.info("   This is the CRITICAL join that shows SCD Type 2 point-in-time accuracy!")
+logger.info("\nStep 4: Lookup product_sk from dim_products (SCD Type 2 join)...")
+logger.info("   Product join uses event time to select the historical version")
 logger.info("   We match: product_id AND event_date within [effective_from, effective_to)")
 
 df_products = spark.table("product_analytics.ecommerce.silver_dim_products") \
@@ -1145,7 +1145,7 @@ logger.info("    product_sk joined with SCD Type 2 date range")
 logger.info("    price_at_event captured (price when event happened)")
 
 # Add measures
-logger.info("\n Step 5: Add measures...")
+logger.info("\nStep 5: Add measures...")
 
 df_fact_events = df_events_with_product \
     .withColumn("event_count", F.lit(1)) \
@@ -1175,16 +1175,16 @@ df_fact_events = df_events_with_product \
 
 logger.info("    Measures added: event_count, quantity, revenue")
 
-logger.info("\n📋 Step 6: Preview fact_events:")
+logger.info("\nStep 6: Preview fact_events:")
 df_fact_events.show(10, truncate=False)
 
-logger.info("\n Data Quality Check:")
+logger.info("\nData Quality Check:")
 logger.info(f"   Total events: {df_fact_events.count():,}")
 logger.info(f"   Events with valid date_sk: {df_fact_events.filter(F.col('date_sk') != -1).count():,}")
 logger.info(f"   Events with valid user_sk: {df_fact_events.filter(F.col('user_sk') != -1).count():,}")
 logger.info(f"   Events with valid product_sk: {df_fact_events.filter(F.col('product_sk') != -1).count():,}")
 
-logger.info("\n💰 Revenue Check:")
+logger.info("\nRevenue Check:")
 df_fact_events.groupBy("event_type") \
     .agg(
         F.count("*").alias("event_count"),
@@ -1194,7 +1194,7 @@ df_fact_events.groupBy("event_type") \
     .show()
 
 logger.info("\nStep 7: Write to Delta table...")
-logger.info("   🔑 Delta Feature: ACID Transaction (all or nothing write)")
+logger.info("    Delta Feature: ACID Transaction (all or nothing write)")
 
 fact_table = "product_analytics.ecommerce.fact_events"
 
@@ -1205,7 +1205,7 @@ df_fact_events.write.format("delta") \
     .option("delta.autoOptimize.autoCompact", "true") \
     .saveAsTable(fact_table)
 
-logger.info("\n fact_events created!")
+logger.info("\nfact_events created")
 logger.info(f"   Table: {fact_table}")
 logger.info(f"   Rows: {df_fact_events.count():,}")
 
@@ -1216,7 +1216,7 @@ logger.info(f"    dim_products ({spark.table('product_analytics.ecommerce.silver
 logger.info(f"    dim_users ({spark.table('product_analytics.ecommerce.silver_dim_users').count():,} rows)")
 logger.info(f"    fact_events ({df_fact_events.count():,} rows)")
 
-logger.info("\n🔑 Next: Demonstrate Delta features (OPTIMIZE, Time Travel, MERGE)!")
+logger.info("\nFact table load complete")
 
 # COMMAND ----------
 
@@ -1267,20 +1267,20 @@ making queries 5-10x faster. Traditional databases don't give you this control."
 print("="*80)
 logger.info("DELTA FEATURE #1: OPTIMIZE + Z-ORDER")
 print("="*80)
-logger.info("\n🛠 Compacting files and co-locating related data for faster queries\n")
+logger.info("\nCompacting files and co-locating related data for faster queries\n")
 
 # Check current file stats
-logger.info("📁 BEFORE OPTIMIZE:")
+logger.info(" BEFORE OPTIMIZE:")
 spark.sql("""
     DESCRIBE DETAIL product_analytics.ecommerce.fact_events
 """).select("numFiles", "sizeInBytes").show()
 
-logger.info("\n🛠 Running OPTIMIZE with Z-ORDER...")
+logger.info("\nRunning OPTIMIZE with Z-ORDER...")
 logger.info("   Z-ORDER BY (event_date, product_sk):")
 logger.info("   - Co-locates events from same date")
 logger.info("   - Co-locates events for same product")
 logger.info("   - Most queries filter by date and/or product")
-logger.info("   - This makes those queries MUCH faster!\n")
+logger.info("   - Z-ORDER colocates data for common filters\n")
 
 # Run OPTIMIZE
 spark.sql("""
@@ -1288,15 +1288,15 @@ spark.sql("""
     ZORDER BY (event_date, product_sk)
 """)
 
-logger.info("\n OPTIMIZE complete!\n")
+logger.info("\nOPTIMIZE complete\n")
 
 # Check stats after
-logger.info("📁 AFTER OPTIMIZE:")
+logger.info(" AFTER OPTIMIZE:")
 spark.sql("""
     DESCRIBE DETAIL product_analytics.ecommerce.fact_events
 """).select("numFiles", "sizeInBytes").show()
 
-logger.info("\n Expected Results:")
+logger.info("\nExpected Results:")
 logger.info("   - numFiles: Reduced by 50-90% (fewer, larger files)")
 logger.info("   - Query performance: 2-10x faster for date/product filters")
 logger.info("   - Storage: Same or smaller (better compression on larger files)\n")
@@ -1305,7 +1305,7 @@ logger.info(" WHY THIS PROVES DELTA/LAKEHOUSE VALUE:")
 logger.info("    We control file layout (can't do this in traditional DB)")
 logger.info("    We see immediate query speedup")
 logger.info("    We choose which columns to co-locate (Z-ORDER)")
-logger.info("    This is a Lakehouse superpower!\n")
+logger.info("    Historical table versions remain queryable\n")
 
 logger.info(" INTERVIEW TIP:")
 logger.info("   'We chose Delta because OPTIMIZE + Z-ORDER gave us 5-10x speedup")
@@ -1361,7 +1361,7 @@ print("="*80)
 logger.info("\nQuery historical versions of any table\n")
 
 # Show version history
-logger.info("📜 Version History for fact_events:")
+logger.info(" Version History for fact_events:")
 history_df = spark.sql("""
     DESCRIBE HISTORY product_analytics.ecommerce.fact_events
 """)
@@ -1397,7 +1397,7 @@ df_current = spark.sql(f"""
 """)
 df_current.show()
 
-logger.info("\n SAME DATA, DIFFERENT VERSIONS!")
+logger.info("\nComparing table versions")
 logger.info("   Even though we ran OPTIMIZE, old versions are still queryable.\n")
 
 logger.info(" MORE TIME TRAVEL EXAMPLES:\n")
@@ -1457,10 +1457,10 @@ Step 2: UPDATE dim_products SET effective_to = CURRENT_DATE WHERE product_id = 1
 Step 3: INSERT INTO dim_products VALUES (...);
 
 Problems:
-❌ NOT atomic (3 operations)
-❌ If step 2 fails, data is inconsistent
-❌ Concurrent queries see partial state
-❌ Slow (3 separate operations)
+ NOT atomic (3 operations)
+ If step 2 fails, data is inconsistent
+ Concurrent queries see partial state
+ Slow (3 separate operations)
 
 Delta MERGE approach:
 
@@ -1472,10 +1472,10 @@ WHEN MATCHED AND source.price != target.price THEN
 WHEN NOT MATCHED THEN
   INSERT (...);
 
-✅ Atomic (all or nothing)
-✅ One operation
-✅ No partial state
-✅ Fast (optimized by Delta)
+ Atomic (all or nothing)
+ One operation
+ No partial state
+ Fast (optimized by Delta)
 
 ==============================================================================
 INTERVIEW ANSWER:
@@ -1491,7 +1491,7 @@ from pyspark.sql import functions as F
 print("="*80)
 logger.info("DELTA FEATURE #3: MERGE FOR INCREMENTAL SCD TYPE 2")
 print("="*80)
-logger.info("\n Demonstrating atomic upsert for dimension updates!\n")
+logger.info("\nApplying an atomic dimension update\n")
 
 # Simulate new product data (price changes)
 logger.info(" Step 1: Simulate new product data (price changes)...\n")
@@ -1509,24 +1509,24 @@ df_new_products = df_current_products \
     .withColumn("price", F.col("price") * F.lit(1.1))  \
     .select("product_id", "brand", "price", "category_sk", "category_code")
 
-logger.info("\n   NEW prices (10% increase):")
+logger.info("\nNEW prices (10% increase):")
 df_new_products.select("product_id", "brand", "price").show()
 
-logger.info("\n Step 2: Preview MERGE logic...")
-logger.info("\n   Without MERGE (traditional approach):")
+logger.info("\nStep 2: Preview MERGE logic...")
+logger.info("\nWithout MERGE (traditional approach):")
 logger.info("   1. UPDATE old rows: SET is_current=FALSE, effective_to=yesterday")
 logger.info("   2. INSERT new rows: new version with new price")
 logger.info("   3. UPDATE surrogate keys: Increment max(product_sk)")
-logger.info("    Problem: 3 operations, NOT atomic!\n")
+logger.info("    Multiple separate updates are not atomic\n")
 
 logger.info("   With Delta MERGE (Lakehouse approach):")
 logger.info("   MERGE INTO dim_products")
 logger.info("   USING new_products")
 logger.info("   WHEN MATCHED AND price_changed THEN UPDATE (close old version)")
 logger.info("   WHEN NOT MATCHED THEN INSERT (new version)")
-logger.info("    Solution: ONE atomic operation!\n")
+logger.info("    MERGE applies the update atomically\n")
 
-logger.info("🛠 Step 3: Execute MERGE...")
+logger.info(" Step 3: Execute MERGE...")
 logger.info("   NOTE: For demo, we'll show the MERGE syntax but not execute")
 logger.info("   (to avoid modifying dimension data mid-presentation)\n")
 
@@ -1572,7 +1572,7 @@ df_new_versions.write.format("delta").mode("append").saveAsTable(
 logger.info(" MERGE Code:")
 print(merge_code)
 
-logger.info("\n MERGE Explained:")
+logger.info("\nMERGE Explained:")
 logger.info("   1. Match on product_id + is_current_version=TRUE")
 logger.info("   2. If price changed: UPDATE old row (close it out)")
 logger.info("   3. INSERT new row with:")
@@ -1595,7 +1595,7 @@ logger.info("    atomic and safe. Without Delta, we'd risk data inconsistency wi
 logger.info("    separate DELETE/UPDATE/INSERT operations. MERGE is the #1 reason")
 logger.info("    to use Delta Lake for dimensional modeling.'\n")
 
-logger.info("🔑 Real-world use cases for MERGE:")
+logger.info(" Real-world use cases for MERGE:")
 logger.info("   1. SCD Type 2 dimension updates (our use case)")
 logger.info("   2. CDC from operational databases (MySQL, Postgres)")
 logger.info("   3. Deduplication (MERGE ... WHEN MATCHED THEN IGNORE)")

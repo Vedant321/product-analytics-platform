@@ -58,7 +58,7 @@ os.environ['KAGGLE_USERNAME'] = KAGGLE_USERNAME
 os.environ['KAGGLE_KEY'] = KAGGLE_KEY
 
 logger.info(f"Username: {KAGGLE_USERNAME}")
-logger.info("\n Kaggle API ready!")
+logger.info("\nKaggle API configured")
 
 # COMMAND ----------
 
@@ -90,7 +90,7 @@ os.makedirs(temp_download_path, exist_ok=True)
 
 logger.info(f"\nDownloading dataset: {dataset}")
 logger.info(f"Destination: {temp_download_path}")
-logger.info("\n⚠  This is a large dataset (~32GB). Download may take 10-20 minutes...\n")
+logger.info("\nThis is a large dataset (~32GB). Download may take 10-20 minutes...\n")
 
 # Download dataset
 api.dataset_download_files(
@@ -99,7 +99,7 @@ api.dataset_download_files(
     unzip=True  # Auto-extract after download
 )
 
-logger.info("\n Dataset downloaded and extracted successfully!")
+logger.info("\nDataset downloaded and extracted")
 
 # List downloaded files
 downloaded_files = os.listdir(temp_download_path)
@@ -123,8 +123,8 @@ import shutil
 # Get volume path from config
 volume_path = config.catalog.volume_path
 
-logger.info(f"📍 Target Volume: {volume_path}")
-logger.info("\n Moving files to volume...\n")
+logger.info(f" Target Volume: {volume_path}")
+logger.info("\nMoving files to volume...\n")
 
 # Create volume directory if it doesn't exist (though it should from SQL creation)
 os.makedirs(volume_path, exist_ok=True)
@@ -143,11 +143,11 @@ for file in downloaded_files:
         logger.info(f"   {file} → {volume_path} ({file_size_mb:.2f} MB)")
         moved_files.append(file)
 
-logger.info(f"\n Successfully moved {len(moved_files)} CSV files to volume!")
+logger.info(f"\nMoved {len(moved_files)} CSV files to volume")
 
 # Cleanup temp directory
 shutil.rmtree(temp_download_path)
-logger.info("\n🧹 Cleaned up temporary download directory")
+logger.info("\nCleaned up temporary download directory")
 
 # COMMAND ----------
 
@@ -200,12 +200,12 @@ if csv_files:
     display(df_preview)
     
     # Count total rows using wc -l (faster, no memory overhead)
-    logger.info(f"\n📄 Counting rows in {sample_file}...")
+    logger.info(f"\n Counting rows in {sample_file}...")
     import subprocess
     result = subprocess.run(['wc', '-l', sample_path], capture_output=True, text=True)
     row_count = int(result.stdout.split()[0]) - 1  # Subtract 1 for header
     logger.info(f"   Rows: {row_count:,}")
     
 print("\n" + "="*80)
-logger.info(" Data validation complete! Ready for ingestion pipeline.")
+logger.info("Data validation complete")
 print("="*80)

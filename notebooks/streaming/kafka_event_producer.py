@@ -135,7 +135,7 @@ for batch_num in range(1, TOTAL_BATCHES + 1):
         logger.info(f"Waiting {BATCH_INTERVAL_SECONDS} seconds before next batch...")
         time.sleep(BATCH_INTERVAL_SECONDS)
 
-logger.info("\nProduction complete!")
+logger.info("\nProducer run complete")
 logger.info(f"Total events sent: {EVENTS_PER_BATCH * TOTAL_BATCHES}")
 
 # COMMAND ----------

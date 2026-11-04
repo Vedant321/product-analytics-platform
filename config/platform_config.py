@@ -206,7 +206,7 @@ Example: How to use this configuration in other notebooks
 """
 
 # Access configuration values
-logger.info("\n📋 EXAMPLE USAGE:")
+logger.info("\nConfiguration example:")
 print("=" * 60)
 
 # Get fully qualified table names
@@ -233,7 +233,7 @@ logger.info(f"   Bronze Trigger: {config.streaming.bronze_trigger_interval}")
 logger.info(f"   Replay Speed: {config.streaming.replay_speed_multiplier}x")
 
 print("\n" + "=" * 60)
-logger.info("\n Configuration loaded successfully!")
-logger.info("\n To use in other notebooks:")
+logger.info("\nConfiguration loaded")
+logger.info("\nUsage in other notebooks:")
 logger.info("   %run ./config/platform_config")
 logger.info("   Then access via: config.get_table('bronze_events')")

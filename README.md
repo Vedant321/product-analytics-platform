@@ -1,10 +1,34 @@
 # Product Analytics Platform
 
-A production-grade lakehouse platform demonstrating end-to-end data engineering: from raw event ingestion through real-time streaming to interactive analytics dashboards.
+A lakehouse project covering event ingestion, dimensional modeling, Gold aggregates, and an interactive analytics dashboard.
 
-**Built with:** Databricks Delta Lake + Kafka Streaming + Streamlit
+**Built with:** Databricks Delta Lake + Kafka Streaming + FastAPI + React/TypeScript
 
-**Architecture:** Medallion (Bronze → Silver → Gold) + Real-time Processing + Interactive Dashboard
+**Architecture:** Medallion (Bronze → Silver → Gold) + Real-time Processing + Interactive Analytics
+
+## Dashboard
+
+The React dashboard reads the Databricks Gold layer through a read-only Python API. It brings together daily commerce metrics, category and brand performance, and a forecasting lab that compares five time-series methods on the same holdout window.
+
+![Commerce overview with revenue, purchases, daily trend, and event funnel](docs/assets/dashboard/overview.png)
+
+**Overview:** Revenue, purchases, active users, conversion, daily trends, and the event funnel.
+
+### Performance
+
+Category and brand revenue concentration from Gold aggregates.
+
+![Category performance ranking and revenue mix](docs/assets/dashboard/performance.png)
+
+### Forecast Lab
+
+Historical trend, projected values, and holdout MAE across forecasting methods.
+
+![Forecast chart and model comparison](docs/assets/dashboard/forecast-lab.png)
+
+See [dashboard/README.md](dashboard/README.md) for local setup, data definitions, and deployment notes.
+
+For public access, the [hosting plan](dashboard/DEPLOYMENT.md) recommends a static site on Vercel or Cloudflare Pages built from a real Gold data snapshot. The local dashboard currently uses a live Databricks connection; public hosting has not been configured yet.
 
 ---
 
@@ -28,12 +52,11 @@ A production-grade lakehouse platform demonstrating end-to-end data engineering:
   - Product performance (top sellers, revenue by brand)
   - Category performance (sales by category)
 
-**3. Interactive Analytics Dashboard (Streamlit)**
+**3. Interactive Analytics Dashboard (React + FastAPI)**
 - Overview: KPIs, conversion funnel, daily trends
-- Products: Top brands, revenue treemap, scatter analysis
-- Categories: Revenue distribution, AOV, purchases
-- Real-time data refresh from Gold layer
-- Deployed on Streamlit Cloud
+- Performance: Category and brand revenue rankings and concentration
+- Forecast Lab: Five time-series methods, holdout MAE, and configurable history and horizon
+- Read-only API over the Databricks Gold layer
 
 **4. Data Source**
 - eCommerce behavior dataset (REES46 via Kaggle)
@@ -180,12 +203,12 @@ product-analytics-platform/
 │   ├── kafka_event_producer.py     # Event producer (writes to staging table)
 │   └── kafka_event_consumer.py     # Consumer (writes to unified bronze_events)
 │
-├── frontend/
-│   ├── app.py                      # Streamlit analytics dashboard
-│   ├── data_repository.py          # Data access layer
-│   └── requirements.txt            # Python dependencies
+├── dashboard/
+│   ├── backend/                    # FastAPI, Gold queries, and forecasting
+│   └── web/                        # React/TypeScript dashboard
 │
 ├── docs/
+│   ├── assets/dashboard/           # Dashboard screenshots for this README
 │   ├── SILVER_LAYER_ARCHITECTURE.md
 │   └── DIMENSIONS_COMPLETE_GUIDE.md
 │
@@ -220,11 +243,10 @@ Users are classified based on behavior:
 ## What's Next
 
 **Advanced Analytics & ML:**
-- Demand forecasting (Prophet time series)
+- Extend forecasting with longer history, external drivers, and calibrated intervals
 - Customer lifetime value prediction (MLflow + Feature Store)
 - Churn prediction with real-time scoring
 - Product recommendation engine (collaborative filtering)
-- A/B testing framework infrastructure
 
 **Infrastructure:**
 - CI/CD pipeline (GitHub Actions)
@@ -243,16 +265,16 @@ Users are classified based on behavior:
 - **Streaming**: Kafka (Confluent Cloud) + Spark Structured Streaming
 
 **Development:**
-- **Languages**: Python, SQL
-- **Dashboard**: Streamlit (deployed on Streamlit Cloud)
+- **Languages**: Python, SQL, TypeScript
+- **Dashboard**: React + FastAPI
 - **Version Control**: Git + GitHub
-- **Logging**: Python logging with production-grade configuration
+- **Logging**: Centralized Python logging configuration
 
 **Architecture:**
 - **Pattern**: Medallion Architecture (Bronze/Silver/Gold) with hybrid ingestion
 - **Data Modeling**: Kimball star schema with SCD Type 2
 - **Processing**: Unified transformation path for both batch and streaming sources
-- **Note**: This is NOT Lambda Architecture - both batch and streaming flow through the same transformation logic (no separate batch/speed layers)
+- **Processing**: Batch and streaming events use the same Bronze-to-Gold transformation path
 
 **Note:** Databricks workspace runs on cloud infrastructure (AWS backend in this case), but the platform abstracts infrastructure management - no direct AWS provisioning required.
 
@@ -296,13 +318,13 @@ This platform demonstrates end-to-end data engineering best practices:
 - Enrichment with surrogate keys happens in Silver layer
 
 **Code Quality:**
-- Production-grade logging (centralized configuration)
+- Centralized logging configuration
 - Error handling and data validation
 - Modular code structure (separation of concerns)
 - Git version control
 
 **Deployment:**
-- Interactive dashboard deployed on Streamlit Cloud
+- Local React/FastAPI dashboard connected to the Databricks Gold layer
 - Streaming infrastructure ready (Kafka integration setup)
 - Scalable compute (Spark Serverless)
 

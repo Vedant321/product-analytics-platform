@@ -32,7 +32,7 @@ print("="*80)
 
 # Get volume path from config
 volume_path = config.catalog.volume_path
-logger.info(f"\n📂 Source: {volume_path}")
+logger.info(f"\n Source: {volume_path}")
 logger.info(f" Target: {config.get_table('bronze_events')}")
 logger.info("\n⏳ Reading CSV files...\n")
 
@@ -42,10 +42,10 @@ df_raw = spark.read.format("csv") \
     .option("inferSchema", "true") \
     .load(f"{volume_path}/*.csv")
 
-logger.info(" CSV files read successfully!")
+logger.info("CSV files loaded")
 logger.info(f"   Rows: {df_raw.count():,}")
 logger.info(f"   Columns: {len(df_raw.columns)}")
-logger.info("\n📋 Original Schema:")
+logger.info("\nOriginal Schema:")
 df_raw.printSchema()
 
 # COMMAND ----------
@@ -70,15 +70,15 @@ df_bronze = df_raw \
     .withColumn("source_file", F.col("_metadata.file_path")) \
     .withColumn("event_date", F.to_date(F.col("event_time")))
 
-logger.info("\n Added 3 metadata columns:")
+logger.info("\nAdded 3 metadata columns:")
 logger.info("   • ingestion_timestamp (when we loaded this)")
 logger.info("   • source_file (which CSV it came from)")
 logger.info("   • event_date (extracted date for partitioning)")
 
-logger.info("\n📋 Bronze Schema (with metadata):")
+logger.info("\nBronze Schema (with metadata):")
 df_bronze.printSchema()
 
-logger.info("\n Sample with metadata:")
+logger.info("\nSample with metadata:")
 display(df_bronze.limit(5))
 
 # COMMAND ----------
@@ -100,14 +100,14 @@ partition_stats = df_bronze.groupBy("event_date") \
     .count() \
     .orderBy("event_date")
 
-logger.info("\n Date Range:")
+logger.info("\nDate Range:")
 min_date = df_bronze.agg(F.min("event_date")).collect()[0][0]
 max_date = df_bronze.agg(F.max("event_date")).collect()[0][0]
 logger.info(f"   From: {min_date}")
 logger.info(f"   To: {max_date}")
 logger.info(f"   Total Partitions: {partition_stats.count()}")
 
-logger.info("\n Events per Day (first 10 and last 10):")
+logger.info("\nEvents per Day (first 10 and last 10):")
 display(partition_stats.limit(10))
 logger.info("\n...\n")
 display(partition_stats.orderBy(F.desc("event_date")).limit(10))
@@ -140,7 +140,7 @@ table_name = config.get_table('bronze_events')
 
 logger.info(f"\n Target Table: {table_name}")
 logger.info(" Format: Delta Lake (Parquet + Transaction Log)")
-logger.info("🗂  Partitioning: By event_date")
+logger.info("  Partitioning: By event_date")
 logger.info(f"\n⏳ Writing {df_bronze.count():,} rows...")
 logger.info("   (This will take a few minutes - processing 13+ GB of data)\n")
 
@@ -157,10 +157,10 @@ df_bronze.write.format("delta") \
 end_time = time.time()
 duration = end_time - start_time
 
-logger.info("\n Delta table created successfully!")
+logger.info("\nDelta table created")
 logger.info(f"Duration: {duration:.2f} seconds ({duration/60:.2f} minutes)")
 logger.info(f"    Table: {table_name}")
-logger.info(f"   🗂  Partitions: {partition_stats.count()}")
+logger.info(f"     Partitions: {partition_stats.count()}")
 logger.info("\nCSV files successfully converted to Delta Lake format")
 
 # COMMAND ----------
@@ -181,15 +181,15 @@ logger.info(f"\n Checking table: {table_name}\n")
 
 # Read from Delta table using SQL
 result = spark.sql(f"SELECT COUNT(*) as row_count FROM {table_name}").collect()[0]
-logger.info(" Table exists and is queryable!")
+logger.info("Table is queryable")
 logger.info(f"   Total rows: {result['row_count']:,}")
 
 # Show table details
-logger.info("\n📋 Table Details:")
+logger.info("\nTable Details:")
 spark.sql(f"DESCRIBE EXTENDED {table_name}").show(50, False)
 
 # Show partitions
-logger.info("\n🗂  Partitions:")
+logger.info("\nPartitions:")
 partitions_df = spark.sql(f"SHOW PARTITIONS {table_name}")
 logger.info(f"   Total partitions: {partitions_df.count()}")
 partitions_df.show(10)
@@ -209,7 +209,7 @@ print("="*80)
 
 table_name = config.get_table('bronze_events')
 
-logger.info("\n You can now query with SQL!\n")
+logger.info("\nBronze table is ready for SQL queries\n")
 
 # Test 1: Simple count
 logger.info("Query 1: Total events")
@@ -244,8 +244,7 @@ result = spark.sql(f"""
 """).show()
 
 logger.info("\nSQL queries validated successfully")
-logger.info("   Notice how fast the date filter query was?")
-logger.info("   That's partition pruning in action!")
+logger.info("Date filter query completed using partition pruning")
 
 # COMMAND ----------
 
@@ -265,7 +264,7 @@ import time
 table_name = config.get_table('bronze_events')
 volume_path = config.catalog.volume_path
 
-logger.info("\n Running same query on both formats...\n")
+logger.info("\nRunning same query on both formats...\n")
 
 test_date = '2019-11-01'
 test_query = f"WHERE event_date = '{test_date}'"
@@ -286,11 +285,11 @@ delta_result = spark.sql(f"SELECT COUNT(*) FROM {table_name} WHERE event_date = 
 delta_time = time.time() - start
 
 # Results
-logger.info("\n Results:")
+logger.info("\nResults:")
 logger.info(f"   CSV Query Time:   {csv_time:.2f} seconds")
 logger.info(f"   Delta Query Time: {delta_time:.2f} seconds")
-logger.info(f"\n Speedup: {csv_time/delta_time:.1f}x FASTER with Delta!")
-logger.info("\n Why?")
+logger.info(f"\nDelta/CSV query time ratio: {csv_time/delta_time:.1f}x")
+logger.info("\nQuery plan notes:")
 logger.info("   • Columnar storage (Parquet)")
 logger.info("   • Partition pruning (only read 1 day, not all 61 days)")
 logger.info("   • Statistics (min/max values per file)")
@@ -313,7 +312,7 @@ table_name = config.get_table('bronze_events')
 table_info = spark.sql(f"DESCRIBE EXTENDED {table_name}").collect()
 location = [row['data_type'] for row in table_info if row['col_name'] == 'Location'][0]
 
-logger.info("\n📂 Table Location:")
+logger.info("\nTable Location:")
 logger.info(f"   {location}")
 
 # Get storage stats
@@ -327,12 +326,12 @@ spark.sql(f"DESCRIBE DETAIL {table_name}").select(
 # Optimize table (compact small files)
 logger.info("\nOptimizing table (compacting files)...")
 spark.sql(f"OPTIMIZE {table_name}")
-logger.info(" Table optimized!")
+logger.info("Table optimized")
 
 # Run ANALYZE to collect statistics
-logger.info("\n Collecting statistics...")
+logger.info("\nCollecting statistics...")
 spark.sql(f"ANALYZE TABLE {table_name} COMPUTE STATISTICS")
-logger.info(" Statistics collected!")
+logger.info("Table statistics collected")
 
 logger.info("\nBronze layer ingestion complete")
 
@@ -344,7 +343,7 @@ Bronze Layer Complete!
 """
 
 print("\n" + "="*80)
-logger.info("BRONZE LAYER INGESTION - COMPLETE!")
+logger.info("Bronze layer ingestion complete")
 print("="*80)
 
 table_name = config.get_table('bronze_events')
@@ -359,18 +358,18 @@ print(f"""
    • Storage: ~4-5 GB (compressed from 13.67 GB CSV)
    • Schema: 12 columns (9 original + 3 metadata)
 
-🚀 CAPABILITIES UNLOCKED:
+ CAPABILITIES UNLOCKED:
 
-✅ SQL Queries: Can query with standard SQL
-✅ Fast Filters: 10-100x faster than CSV
-✅ ACID Transactions: Safe updates/deletes
-✅ Time Travel: Can query historical versions
-✅ Schema Evolution: Can add/modify columns safely
-✅ Partition Pruning: Only reads relevant data
-✅ Compression: 3-5x smaller storage
-✅ Unity Catalog: Governed, discoverable, lineage tracked
+ SQL Queries: Can query with standard SQL
+ Fast Filters: 10-100x faster than CSV
+ ACID Transactions: Safe updates/deletes
+ Time Travel: Can query historical versions
+ Schema Evolution: Can add/modify columns safely
+ Partition Pruning: Only reads relevant data
+ Compression: 3-5x smaller storage
+ Unity Catalog: Governed, discoverable, lineage tracked
 
-📝 WHAT'S NEXT:
+ WHAT'S NEXT:
 
 1. Silver Layer (Data Cleaning & Transformation)
    • Handle nulls in category_code (32%) and brand (14%)
@@ -390,7 +389,7 @@ print(f"""
    • Build business dashboards
    • Set up alerts
 
-💡 TRY IT OUT:
+ TRY IT OUT:
 
 -- Query the Bronze table:
 SELECT * FROM {table_name} LIMIT 10;
